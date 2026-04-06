@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+models/
+.streamlit/
+*.egg-info/
+dist/
+build/
+.DS_Store
