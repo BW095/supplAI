@@ -212,20 +212,21 @@ def generate_brief(
 
     # Try Gemini API
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types as genai_types
         import json
         import re
 
-        genai.configure(api_key=effective_key)
-        model  = genai.GenerativeModel("gemini-1.5-flash")
+        client = genai.Client(api_key=effective_key)
         prompt = _build_prompt(disruption_info, risk_df, reroute_suggestions, shap_context=shap_context)
 
-        print("  [llm_brief] Calling Gemini 1.5 Flash …")
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                temperature      = 0.3,    # lower = more factual
-                max_output_tokens= 1024,
+        print("  [llm_brief] Calling Gemini 2.0 Flash …")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                temperature       = 0.3,
+                max_output_tokens = 8192,
             ),
         )
 

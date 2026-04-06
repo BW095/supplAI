@@ -19,6 +19,7 @@ import pandas as pd
 import networkx as nx
 import plotly.graph_objects as go
 import numpy as np
+from streamlit_autorefresh import st_autorefresh
 
 # ---------------------------------------------------------------------------
 # Add src/ to Python path so we can import our modules
@@ -27,12 +28,15 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from disruption_input import parse_disruption
+from news_fetcher     import get_live_disruptions
+from weather_monitor  import get_weather_disruptions
 from graph_builder    import build_graph, load_supply_metadata, get_graph_summary
 from cascade_model    import run_cascade, get_cascade_stats
 from risk_scoring     import score_nodes, compute_centrality
 from reroute          import find_alternates, format_path
 from llm_brief        import generate_brief
 from shap_explain     import compute_shap, shap_bar_figure, shap_waterfall_figure, shap_to_text, FEATURE_DESCRIPTIONS, FEATURE_LABELS
+from anomaly_detector import load_or_train_anomaly, score_anomalies, anomaly_bar_figure
 
 # ---------------------------------------------------------------------------
 # Page config — must be first Streamlit call
@@ -362,6 +366,10 @@ def _load_delay_model():
 def _compute_centrality(_G):
     return compute_centrality(_G)
 
+@st.cache_resource(show_spinner="🔍 Loading anomaly detection model …")
+def _load_anomaly_model():
+    return load_or_train_anomaly()
+
 
 # ---------------------------------------------------------------------------
 # Graph visualisation with Plotly
@@ -545,6 +553,42 @@ def render_sidebar():
 
         st.markdown("---")
 
+        # ---- Live Intelligence Section ----
+        st.markdown("### 📡 Live Intelligence")
+        auto_refresh = st.toggle("🔄 Auto-refresh (30 min)", value=False,
+                                 help="Automatically re-fetch news & weather every 30 minutes")
+        col_n, col_w = st.columns(2)
+        with col_n:
+            if st.button("🌍 News", use_container_width=True, help="Fetch latest geopolitical news"):
+                with st.spinner("Fetching news …"):
+                    news_events = get_live_disruptions()
+                weather_events = st.session_state.get("weather_events", [])
+                st.session_state["live_events"] = news_events + weather_events
+                st.rerun()
+        with col_w:
+            if st.button("🌩️ Weather", use_container_width=True, help="Check live weather & earthquakes"):
+                with st.spinner("Checking weather & quakes …"):
+                    weather_events = get_weather_disruptions()
+                news_events = st.session_state.get("live_events", [])
+                st.session_state["weather_events"] = weather_events
+                st.session_state["live_events"] = news_events + weather_events
+                st.rerun()
+
+        live_events = st.session_state.get("live_events")
+        if live_events:
+            st.markdown(f"**{len(live_events)} disruption(s) detected:**")
+            for i, evt in enumerate(live_events):
+                sev_icon = {"high": "🔴", "medium": "🟠", "low": "🟡"}.get(evt["severity"], "⚪")
+                src_icon = {"USGS": "🌋", "OpenWeatherMap": "🌩️"}.get(evt.get("source",""), "📰")
+                label = f"{sev_icon}{src_icon} {evt['title'][:40]}{'…' if len(evt['title']) > 40 else ''}"
+                if st.button(label, key=f"live_evt_{i}", use_container_width=True):
+                    st.session_state["event_text"] = evt["event_text"]
+                    st.rerun()
+        elif live_events is not None:
+            st.info("No disruptions detected right now.")
+
+        st.markdown("---")
+
         # Demo scenario button
         st.markdown("**🧪 Quick Demo:**")
         if st.button("🏭 China Electronics Shutdown"):
@@ -581,6 +625,7 @@ def render_sidebar():
     # Sync text area value to session state
     st.session_state["event_text"] = event_text
 
+    st.session_state["_auto_refresh_on"] = auto_refresh
     return event_text, severity_override, max_depth, run_analysis
 
 
@@ -593,6 +638,16 @@ def main():
         st.session_state["results"] = None
     if "event_text" not in st.session_state:
         st.session_state["event_text"] = ""
+    if "live_events" not in st.session_state:
+        st.session_state["live_events"] = None
+    if "auto_load_attempted" not in st.session_state:
+        st.session_state["auto_load_attempted"] = False
+    if "weather_events" not in st.session_state:
+        st.session_state["weather_events"] = []
+    if "_auto_refresh_on" not in st.session_state:
+        st.session_state["_auto_refresh_on"] = False
+    if "_last_refresh_count" not in st.session_state:
+        st.session_state["_last_refresh_count"] = 0
 
     # ---- Load resources ----
     G         = _load_graph()
@@ -601,6 +656,13 @@ def main():
 
     # ---- Sidebar ----
     event_text, severity_override, max_depth, run_analysis = render_sidebar()
+
+    # ---- Auto-refresh trigger ----
+    if st.session_state.get("_auto_refresh_on"):
+        refresh_count = st_autorefresh(interval=30 * 60 * 1000, key="autorefresh")
+        if refresh_count > st.session_state.get("_last_refresh_count", 0):
+            st.session_state["_last_refresh_count"] = refresh_count
+            st.session_state["auto_load_attempted"]  = False   # force re-fetch on next cycle
 
     # ---- Header ----
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -613,19 +675,10 @@ def main():
 
     st.markdown("---")
 
-    # ---- Run analysis on button click ----
-    if run_analysis and event_text.strip():
-        with st.spinner("🔍 Parsing disruption event …"):
-            disruption_info = parse_disruption(event_text.strip())
-            if severity_override != "Auto-detect":
-                disruption_info["severity"] = severity_override.lower()
-
-        st.info(
-            f"**Event parsed** | 🏙️ {len(disruption_info['affected_nodes'])} seed nodes identified "
-            f"| ⚠️ Severity: **{disruption_info['severity'].upper()}** "
-            f"| 📂 Category: **{disruption_info['category'].replace('_', ' ').title()}**"
-        )
-
+    # ---------------------------------------------------------------------------
+    # Helper: run full analysis pipeline for a given disruption_info dict
+    # ---------------------------------------------------------------------------
+    def _run_pipeline(disruption_info, max_depth):
         with st.spinner("⚡ Simulating cascade propagation …"):
             cascade_result = run_cascade(G, disruption_info["affected_nodes"], max_depth)
             cascade_stats  = get_cascade_stats(cascade_result)
@@ -662,7 +715,14 @@ def main():
                 shap_context=shap_context,
             )
 
-        st.session_state["results"] = {
+        with st.spinner("🔎 Running anomaly detection …"):
+            try:
+                anomaly_artifact = _load_anomaly_model()
+                anomaly_df = score_anomalies(anomaly_artifact, G, supply_df)
+            except Exception:
+                anomaly_df = pd.DataFrame()
+
+        return {
             "disruption_info":     disruption_info,
             "cascade_result":      cascade_result,
             "cascade_stats":       cascade_stats,
@@ -670,7 +730,47 @@ def main():
             "reroute_suggestions": reroute_suggestions,
             "brief":               brief,
             "shap_results":        shap_results,
+            "anomaly_df":          anomaly_df,
         }
+
+    # ---------------------------------------------------------------------------
+    # Auto-load on first visit: fetch live news and analyse top event
+    # ---------------------------------------------------------------------------
+    if st.session_state["results"] is None and not st.session_state.get("auto_load_attempted"):
+        st.session_state["auto_load_attempted"] = True
+        with st.spinner("📡 Fetching live intelligence — news + weather + earthquakes …"):
+            try:
+                news_events    = get_live_disruptions()
+            except Exception:
+                news_events    = []
+            try:
+                weather_events = get_weather_disruptions()
+            except Exception:
+                weather_events = []
+            live_events = news_events + weather_events
+
+        if live_events:
+            st.session_state["live_events"]    = live_events
+            st.session_state["weather_events"] = weather_events
+            priority  = {"high": 0, "medium": 1, "low": 2}
+            top_event = min(live_events, key=lambda e: priority.get(e["severity"], 1))
+            st.session_state["event_text"] = top_event["event_text"]
+            st.session_state["results"]    = _run_pipeline(top_event, max_depth)
+            st.rerun()
+
+    # ---- Run analysis on button click ----
+    if run_analysis and event_text.strip():
+        with st.spinner("🔍 Parsing disruption event …"):
+            disruption_info = parse_disruption(event_text.strip())
+            if severity_override != "Auto-detect":
+                disruption_info["severity"] = severity_override.lower()
+
+        st.info(
+            f"**Event parsed** | 🏙️ {len(disruption_info['affected_nodes'])} seed nodes identified "
+            f"| ⚠️ Severity: **{disruption_info['severity'].upper()}** "
+            f"| 📂 Category: **{disruption_info['category'].replace('_', ' ').title()}**"
+        )
+        st.session_state["results"] = _run_pipeline(disruption_info, max_depth)
 
     elif run_analysis and not event_text.strip():
         st.warning("Please enter a disruption description in the sidebar.")
@@ -744,15 +844,42 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
+    # ---- Risk threshold alert banner ----
+    if not risk_df.empty:
+        critical_nodes = risk_df[risk_df["risk_score"] >= 0.8]
+        if not critical_nodes.empty:
+            top_critical = critical_nodes.head(3)
+            node_labels  = ", ".join(
+                f"<b>{r['city_name']}</b> ({r['country']}) — {r['risk_score']:.2f}"
+                for _, r in top_critical.iterrows()
+            )
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #450a0a, #7f1d1d);
+                        border: 1px solid #ef4444; border-radius: 10px;
+                        padding: 0.9rem 1.2rem; margin: 0.8rem 0;
+                        display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 1.5rem;">🚨</span>
+                <div>
+                    <div style="color:#fca5a5; font-weight:700; font-size:0.95rem;">
+                        CRITICAL RISK ALERT — {len(critical_nodes)} node(s) above 0.8 threshold
+                    </div>
+                    <div style="color:#fecaca; font-size:0.85rem; margin-top:0.2rem;">
+                        {node_labels}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ---- 5 tabs ----
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    # ---- 6 tabs ----
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "🌐 Network Graph",
         "🔥 Risk Analysis",
         "🔁 Rerouting",
         "🤖 AI Brief",
         "🔍 ML Explainability",
+        "🚨 Anomaly Detection",
     ])
 
     # ==================================================================
@@ -1181,6 +1308,60 @@ def main():
                     <span style="color:#94a3b8;font-size:0.85rem;">{desc}</span>
                 </div>
                 """, unsafe_allow_html=True)
+
+    # ==================================================================
+    # TAB 6 — Anomaly Detection
+    # ==================================================================
+    with tab6:
+        st.markdown('<div class="section-header">Anomaly Detection — Unusual Shipment Patterns</div>', unsafe_allow_html=True)
+
+        anomaly_df = results.get("anomaly_df", pd.DataFrame())
+
+        if anomaly_df.empty:
+            st.info("Anomaly detection not available.")
+        else:
+            n_anomalous = anomaly_df["is_anomalous"].sum()
+            cascade_nodes = set(results["cascade_result"].keys())
+
+            # Banner
+            st.markdown(f"""
+            <div class="risk-card" style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
+                <span style="font-size:1.5rem;">🚨</span>
+                <span><b style="color:#e2e8f0;">{n_anomalous}</b> / {len(anomaly_df)} nodes show anomalous shipment patterns</span>
+                <span style="color:#94a3b8;font-size:0.85rem;">Isolation Forest — lower score = more unusual behaviour</span>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # How many anomalies overlap with cascade
+            overlap = anomaly_df[anomaly_df["is_anomalous"] & anomaly_df["node"].isin(cascade_nodes)]
+            if not overlap.empty:
+                st.markdown(f"""
+                <div style="background:linear-gradient(135deg,#450a0a,#7f1d1d);
+                            border:1px solid #ef4444;border-radius:10px;
+                            padding:0.9rem 1.2rem;margin-bottom:1rem;">
+                    <span style="color:#fca5a5;font-weight:700;">
+                        ⚠️ {len(overlap)} disrupted node(s) ALSO show anomalous patterns — elevated pre-disruption signal
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Bar chart
+            st.plotly_chart(anomaly_bar_figure(anomaly_df, top_n=20), use_container_width=True)
+
+            # Table
+            st.markdown("#### Anomalous Nodes Detail")
+            display_df = anomaly_df[anomaly_df["is_anomalous"]][
+                ["city_name", "country", "product", "anomaly_score", "anomaly_z", "anomaly_level"]
+            ].rename(columns={
+                "city_name":     "City",
+                "country":       "Country",
+                "product":       "Sector",
+                "anomaly_score": "Anomaly Score",
+                "anomaly_z":     "Z-Score",
+                "anomaly_level": "Level",
+            })
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
 # ---------------------------------------------------------------------------

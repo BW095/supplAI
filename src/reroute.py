@@ -105,6 +105,11 @@ def find_alternates(
             orig_path  = [source, destination]
             orig_dist  = float("inf")
 
+        # Skip pairs where original path doesn't pass through any disrupted node
+        # (no rerouting needed — original and alternate would be identical)
+        if not any(n in all_disrupted for n in orig_path[1:-1]):
+            continue
+
         # ---- Alternate path (avoid all disrupted nodes) ----
         alt_status   = "✅ Alternate Found"
         alt_path     = []
