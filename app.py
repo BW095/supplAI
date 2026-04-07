@@ -47,7 +47,7 @@ from supply_chain_agent import run_agent
 # Page config — must be first Streamlit call
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title = "SupplAI — Supply Chain Monitor",
+    page_title = "SupplAI — AI Supply Chain Intelligence",
     page_icon  = "🔗",
     layout     = "wide",
     initial_sidebar_state = "expanded",
@@ -58,12 +58,38 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-/* ===== Google Fonts ===== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* ===== Google Fonts — Inter + Google Sans feel ===== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
-/* ===== Global Dark Background — Override Streamlit Defaults ===== */
+/* ===== Keyframe Animations ===== */
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(66, 133, 244, 0.3); }
+    50%       { box-shadow: 0 0 22px rgba(66, 133, 244, 0.7), 0 0 40px rgba(234, 67, 53, 0.2); }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-5px); }
+}
+@keyframes ping {
+    75%, 100% { transform: scale(2); opacity: 0; }
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes borderGlow {
+    0%, 100% { border-color: rgba(66,133,244,0.4); }
+    33%       { border-color: rgba(234,67,53,0.4); }
+    66%       { border-color: rgba(251,188,4,0.4); }
+}
+
+/* ===== Global Dark Background ===== */
 html, body {
-    background-color: #0a0e1a !important;
+    background-color: #060b18 !important;
     color: #e2e8f0 !important;
     font-family: 'Inter', sans-serif !important;
 }
@@ -79,28 +105,27 @@ html, body {
 .main > div,
 section[data-testid="stMain"],
 div[data-testid="stMainBlockContainer"] {
-    background-color: #0a0e1a !important;
+    background-color: #060b18 !important;
     color: #e2e8f0 !important;
     font-family: 'Inter', sans-serif !important;
 }
 
-/* All generic divs and paragraphs in main — ensure visible text */
+/* All generic divs and paragraphs in main */
 .stMarkdown, .stMarkdown p, .stMarkdown div,
 .element-container p, .element-container div {
     color: #e2e8f0;
 }
 
-/* ===== Sidebar ===== */
+/* ===== Sidebar — deep navy glassmorphism ===== */
 [data-testid="stSidebar"],
 [data-testid="stSidebar"] > div {
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
-    border-right: 1px solid #334155;
+    background: linear-gradient(180deg, #07101f 0%, #0d1829 50%, #111f38 100%) !important;
+    border-right: 1px solid rgba(66,133,244,0.18) !important;
+    backdrop-filter: blur(12px);
 }
 [data-testid="stSidebar"] .block-container {
-    padding: 1.5rem 1rem;
+    padding: 1.2rem 1rem;
 }
-
-/* Sidebar text visibility */
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] .stMarkdown p,
 [data-testid="stSidebar"] .stMarkdown div,
@@ -113,238 +138,523 @@ div[data-testid="stMainBlockContainer"] {
 [data-testid="stSidebar"] h3 {
     color: #e2e8f0 !important;
 }
-
-/* Sidebar input labels */
 [data-testid="stSidebar"] .stTextArea label,
 [data-testid="stSidebar"] .stSelectbox label,
 [data-testid="stSidebar"] .stSlider label {
     color: #94a3b8 !important;
-    font-size: 0.85rem !important;
+    font-size: 0.82rem !important;
     font-weight: 500 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 /* ===== Main content area ===== */
 .main .block-container {
-    padding: 1.5rem 2rem;
+    padding: 1.2rem 2rem;
     max-width: 100%;
 }
 
-/* ===== Metric cards ===== */
+/* ===== Metric cards — Google-style glassmorphism ===== */
 [data-testid="metric-container"] {
-    background: linear-gradient(135deg, #1e293b, #0f172a) !important;
-    border: 1px solid #334155 !important;
-    border-radius: 12px !important;
-    padding: 1rem !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+    background: linear-gradient(135deg, rgba(30,41,59,0.85), rgba(15,23,42,0.9)) !important;
+    border: 1px solid rgba(66,133,244,0.2) !important;
+    border-radius: 14px !important;
+    padding: 1.1rem 1.2rem !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease !important;
+    animation: fadeInUp 0.4s ease both;
 }
 [data-testid="metric-container"]:hover {
-    border-color: #6366f1 !important;
-    box-shadow: 0 4px 25px rgba(99, 102, 241, 0.2) !important;
-    transition: all 0.2s ease;
+    border-color: rgba(66,133,244,0.55) !important;
+    box-shadow: 0 6px 32px rgba(66,133,244,0.18), 0 0 0 1px rgba(66,133,244,0.1) !important;
+    transform: translateY(-2px) !important;
 }
 [data-testid="metric-container"] label,
 [data-testid="metric-container"] div {
     color: #94a3b8 !important;
 }
 [data-testid="metric-container"] [data-testid="stMetricValue"] {
-    color: #e2e8f0 !important;
-    font-size: 1.4rem !important;
-    font-weight: 700 !important;
+    color: #f1f5f9 !important;
+    font-size: 1.55rem !important;
+    font-weight: 800 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
 }
 
-/* ===== Tab styling ===== */
+/* ===== Tab styling — Google Material-inspired ===== */
 [data-baseweb="tab-list"] {
-    background: #0f172a !important;
-    border-radius: 8px;
-    padding: 4px;
-    gap: 4px;
+    background: rgba(15,23,42,0.8) !important;
+    border-radius: 10px;
+    padding: 5px;
+    gap: 3px;
+    border: 1px solid rgba(66,133,244,0.12);
+    backdrop-filter: blur(8px);
 }
 [data-baseweb="tab"] {
-    border-radius: 6px;
+    border-radius: 7px;
     font-weight: 500;
-    color: #94a3b8 !important;
-    padding: 8px 20px;
+    color: #64748b !important;
+    padding: 9px 18px;
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+[data-baseweb="tab"]:hover {
+    color: #cbd5e1 !important;
+    background: rgba(66,133,244,0.08) !important;
 }
 [aria-selected="true"] {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    background: linear-gradient(135deg, #1a73e8, #4285f4) !important;
     color: white !important;
+    box-shadow: 0 2px 12px rgba(26,115,232,0.45) !important;
+    font-weight: 600 !important;
 }
 [data-baseweb="tab-panel"] {
     background: transparent !important;
+    padding-top: 1.2rem;
 }
 
 /* ===== Horizontal rule ===== */
 hr {
-    border-color: #1e293b !important;
+    border-color: rgba(51,65,85,0.6) !important;
+    margin: 1rem 0;
 }
 
 /* ===== Dataframe / tables ===== */
 [data-testid="stDataFrame"] {
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
+    border: 1px solid rgba(51,65,85,0.5);
 }
 
-/* ===== Buttons ===== */
+/* ===== Buttons — Google Blue primary ===== */
 .stButton > button {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    background: linear-gradient(135deg, #1a73e8, #4285f4) !important;
     color: white !important;
     border: none !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
-    padding: 0.5rem 1.5rem !important;
-    transition: all 0.2s ease;
+    font-size: 0.87rem !important;
+    padding: 0.55rem 1.5rem !important;
+    transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
     width: 100%;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.35);
 }
 .stButton > button:hover {
-    opacity: 0.9;
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+    background: linear-gradient(135deg, #1557b0, #1a73e8) !important;
+    box-shadow: 0 4px 20px rgba(26,115,232,0.5);
     transform: translateY(-1px);
+}
+.stButton > button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(26,115,232,0.3);
 }
 
 /* ===== Text inputs ===== */
 .stTextArea textarea {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 8px !important;
+    background: rgba(30,41,59,0.7) !important;
+    border: 1px solid rgba(51,65,85,0.8) !important;
+    border-radius: 10px !important;
     color: #e2e8f0 !important;
     font-family: 'Inter', sans-serif !important;
+    font-size: 0.9rem !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .stTextArea textarea::placeholder {
     color: #475569 !important;
 }
 .stTextArea textarea:focus {
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+    border-color: #4285f4 !important;
+    box-shadow: 0 0 0 3px rgba(66,133,244,0.18) !important;
 }
 
 /* ===== Selectbox ===== */
 [data-baseweb="select"] > div {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 8px !important;
+    background: rgba(30,41,59,0.8) !important;
+    border: 1px solid rgba(51,65,85,0.8) !important;
+    border-radius: 9px !important;
     color: #e2e8f0 !important;
+    transition: border-color 0.2s ease;
 }
 [data-baseweb="select"] span {
     color: #e2e8f0 !important;
 }
-
-/* Selectbox dropdown menu */
-[data-baseweb="popover"] {
-    background: #1e293b !important;
-}
-[data-baseweb="menu"] {
-    background: #1e293b !important;
-}
+[data-baseweb="popover"] { background: #1e293b !important; }
+[data-baseweb="menu"]    { background: #1e293b !important; }
 [data-baseweb="list-item"] {
     background: #1e293b !important;
     color: #e2e8f0 !important;
 }
 [data-baseweb="list-item"]:hover {
-    background: #334155 !important;
+    background: rgba(66,133,244,0.15) !important;
 }
 
 /* ===== Slider ===== */
-[data-testid="stSlider"] .stSlider > div {
-    color: #e2e8f0 !important;
-}
-[data-testid="stSlider"] [data-testid="stTickBar"] {
-    color: #475569 !important;
-}
+[data-testid="stSlider"] .stSlider > div { color: #e2e8f0 !important; }
+[data-testid="stSlider"] [data-testid="stTickBar"] { color: #475569 !important; }
 
 /* ===== Alert / info boxes ===== */
 [data-testid="stAlert"] {
-    background: #1e293b !important;
-    border-radius: 8px !important;
+    background: rgba(30,41,59,0.8) !important;
+    border-radius: 10px !important;
     color: #e2e8f0 !important;
+    backdrop-filter: blur(6px);
 }
 
-/* ===== Custom cards ===== */
+/* ===== Custom cards — glassmorphism ===== */
 .risk-card {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    border: 1px solid #334155;
-    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(30,41,59,0.85), rgba(15,23,42,0.9));
+    border: 1px solid rgba(51,65,85,0.7);
+    border-radius: 14px;
     padding: 1.2rem 1.5rem;
     margin: 0.5rem 0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
     color: #e2e8f0;
+    backdrop-filter: blur(8px);
+    transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+    animation: fadeInUp 0.35s ease both;
 }
 .risk-card:hover {
-    border-color: #6366f1;
+    border-color: rgba(66,133,244,0.4);
     transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(99, 102, 241, 0.2);
-    transition: all 0.2s ease;
+    box-shadow: 0 8px 32px rgba(66,133,244,0.15);
 }
-.risk-card-critical { border-left: 4px solid #ef4444; }
-.risk-card-high     { border-left: 4px solid #f97316; }
-.risk-card-medium   { border-left: 4px solid #eab308; }
-.risk-card-low      { border-left: 4px solid #22c55e; }
+.risk-card-critical { border-left: 4px solid #ea4335; }
+.risk-card-high     { border-left: 4px solid #fa7b17; }
+.risk-card-medium   { border-left: 4px solid #fbbc04; }
+.risk-card-low      { border-left: 4px solid #34a853; }
 
 .route-card {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    border: 1px solid #334155;
-    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(30,41,59,0.85), rgba(15,23,42,0.9));
+    border: 1px solid rgba(51,65,85,0.7);
+    border-radius: 14px;
     padding: 1.2rem 1.5rem;
     margin: 0.5rem 0;
     color: #e2e8f0;
+    backdrop-filter: blur(8px);
+    transition: all 0.22s ease;
+    animation: fadeInUp 0.35s ease both;
 }
-.route-found  { border-left: 4px solid #22c55e; }
-.route-none   { border-left: 4px solid #ef4444; }
+.route-found  { border-left: 4px solid #34a853; }
+.route-none   { border-left: 4px solid #ea4335; }
 
-/* ===== Section headers ===== */
+/* ===== Section headers — Google gradient ===== */
 .section-header {
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, #4285f4, #34a853, #fbbc04, #ea4335);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
+    font-size: 1.45rem;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
+    font-family: 'Space Grotesk', sans-serif;
+    animation: shimmer 4s linear infinite;
 }
 
 /* ===== Brief sections ===== */
 .brief-section {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    border: 1px solid #334155;
-    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(30,41,59,0.85), rgba(15,23,42,0.9));
+    border: 1px solid rgba(51,65,85,0.7);
+    border-radius: 14px;
     padding: 1.5rem;
     margin: 0.8rem 0;
+    backdrop-filter: blur(8px);
+    animation: fadeInUp 0.4s ease both;
 }
 .brief-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #6366f1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #4285f4;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     margin-bottom: 0.5rem;
+    font-family: 'Space Grotesk', sans-serif;
 }
 .brief-content {
     color: #cbd5e1;
-    line-height: 1.7;
-    font-size: 0.95rem;
+    line-height: 1.8;
+    font-size: 0.93rem;
 }
 
-/* ===== Severity badge ===== */  
-.badge-high   { background: #7f1d1d; color: #fca5a5; border-radius: 6px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; }
-.badge-medium { background: #78350f; color: #fde68a; border-radius: 6px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; }
-.badge-low    { background: #14532d; color: #86efac; border-radius: 6px; padding: 2px 10px; font-size: 0.8rem; font-weight: 600; }
+/* ===== Google-colored severity badges ===== */
+.badge-high   { background: rgba(234,67,53,0.18); color: #ff6b6b; border: 1px solid rgba(234,67,53,0.5); border-radius: 6px; padding: 3px 12px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+.badge-medium { background: rgba(251,188,4,0.15);  color: #fdd663; border: 1px solid rgba(251,188,4,0.4);  border-radius: 6px; padding: 3px 12px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+.badge-low    { background: rgba(52,168,83,0.15);  color: #5cbf7e; border: 1px solid rgba(52,168,83,0.4);  border-radius: 6px; padding: 3px 12px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
 
-/* ===== Spinner / progress ===== */
-.stSpinner > div { border-top-color: #6366f1 !important; }
+/* ===== Hackathon hero banner ===== */
+.hero-banner {
+    background: linear-gradient(135deg, #07101f 0%, #0d1829 40%, #091424 70%, #060b18 100%);
+    border: 1px solid rgba(66,133,244,0.25);
+    border-radius: 20px;
+    padding: 1.8rem 2.2rem;
+    margin-bottom: 1.2rem;
+    position: relative;
+    overflow: hidden;
+    animation: pulse-glow 4s ease-in-out infinite;
+}
+.hero-banner::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(66,133,244,0.07) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.hero-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: 5%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(234,67,53,0.05) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
 
-/* ===== Scrollbar ===== */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+/* ===== Hackathon badge ===== */
+.hackathon-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(66,133,244,0.15), rgba(234,67,53,0.1));
+    border: 1px solid rgba(66,133,244,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    animation: borderGlow 3s ease-in-out infinite;
+}
 
-/* ===== Headings in main area ===== */
+/* ===== Live indicator dot ===== */
+.live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #34a853;
+    box-shadow: 0 0 6px rgba(52,168,83,0.8);
+    animation: ping 1.5s cubic-bezier(0,0,0.2,1) infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* ===== Stat pill chips ===== */
+.stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(30,41,59,0.7);
+    border: 1px solid rgba(66,133,244,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+.stat-chip b { color: #e2e8f0; }
+
+/* ===== Google-brand feature cards ===== */
+.feature-card {
+    background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(10,14,26,0.95));
+    border: 1px solid rgba(51,65,85,0.6);
+    border-radius: 18px;
+    padding: 1.8rem 1.5rem;
+    width: 180px;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    animation: fadeInUp 0.5s ease both;
+    cursor: default;
+}
+.feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(66,133,244,0.2);
+    border-color: rgba(66,133,244,0.35);
+}
+.feature-card-icon {
+    font-size: 2.4rem;
+    margin-bottom: 0.8rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+/* ===== Spinner ===== */
+.stSpinner > div { border-top-color: #4285f4 !important; }
+
+/* ===== Scrollbar — Google subtle ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #060b18; }
+::-webkit-scrollbar-thumb { background: rgba(66,133,244,0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(66,133,244,0.6); }
+
+/* ===== Headings ===== */
 h1, h2, h3, h4, h5, h6 {
-    color: #e2e8f0 !important;
+    color: #f1f5f9 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
 }
 
 /* ===== stInfo / stWarning ===== */
 [data-testid="stNotification"] {
-    background: #1e293b !important;
+    background: rgba(30,41,59,0.85) !important;
     color: #e2e8f0 !important;
+    backdrop-filter: blur(8px);
+    border-radius: 10px !important;
+}
+
+/* ===== Google colors utility classes ===== */
+.g-blue   { color: #4285f4; }
+.g-red    { color: #ea4335; }
+.g-yellow { color: #fbbc04; }
+.g-green  { color: #34a853; }
+
+/* ===== Hide / dark-theme the Streamlit top toolbar ===== */
+[data-testid="stHeader"],
+[data-testid="stToolbar"],
+header[data-testid="stHeader"] {
+    background: #060b18 !important;
+    border-bottom: 1px solid rgba(66,133,244,0.12) !important;
+}
+/* Status widget + hamburger menu */
+[data-testid="stStatusWidget"],
+[data-testid="stDecoration"] { display: none !important; }
+#stDecoration { display: none !important; }
+
+/* Deploy button area */
+[data-testid="stHeader"] button {
+    color: #64748b !important;
+    background: transparent !important;
+}
+
+/* ===== Hide default Streamlit footer ===== */
+footer { visibility: hidden !important; }
+footer::after { display: none !important; }
+
+/* ===== Download button — Google green style ===== */
+[data-testid="stDownloadButton"] > button {
+    background: linear-gradient(135deg, #1e7e34, #34a853) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    box-shadow: 0 2px 8px rgba(52,168,83,0.3) !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    background: linear-gradient(135deg, #166428, #2d9247) !important;
+    box-shadow: 0 4px 16px rgba(52,168,83,0.45) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ===== Radio buttons ===== */
+[data-testid="stRadio"] label {
+    color: #94a3b8 !important;
+    font-size: 0.88rem !important;
+}
+[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
+    color: #94a3b8 !important;
+}
+.stRadio > div {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ===== Slider track ===== */
+[data-testid="stSlider"] > div > div > div > div {
+    background: linear-gradient(90deg, #1a73e8, #ea4335) !important;
+}
+
+/* ===== Expander — glassmorphism ===== */
+[data-testid="stExpander"] {
+    background: rgba(15,23,42,0.7) !important;
+    border: 1px solid rgba(51,65,85,0.6) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(8px);
+}
+[data-testid="stExpander"] summary {
+    color: #94a3b8 !important;
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+}
+[data-testid="stExpander"] summary:hover {
+    color: #e2e8f0 !important;
+}
+[data-testid="stExpander"] > div > div {
+    background: transparent !important;
+}
+
+/* ===== Toggle / checkbox ===== */
+[data-testid="stCheckbox"] label,
+[data-testid="stToggle"] label {
+    color: #94a3b8 !important;
+    font-size: 0.88rem !important;
+}
+
+/* ===== Progress bar ===== */
+[data-testid="stProgressBar"] > div > div {
+    background: linear-gradient(90deg, #1a73e8, #34a853) !important;
+}
+
+/* ===== Tight spacing between br tags ===== */
+br { line-height: 0.5; }
+
+/* ===== Column gap tightening ===== */
+[data-testid="stHorizontalBlock"] {
+    gap: 0.75rem !important;
+}
+
+/* ===== Dataframe header ===== */
+[data-testid="stDataFrame"] thead th {
+    background: rgba(26,115,232,0.12) !important;
+    color: #4285f4 !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+[data-testid="stDataFrame"] tbody tr:hover td {
+    background: rgba(66,133,244,0.07) !important;
+}
+
+/* ===== Spinner text ===== */
+[data-testid="stSpinner"] p {
+    color: #4285f4 !important;
+    font-weight: 500 !important;
+}
+
+/* ===== st.info overrides for Google blue ===== */
+[data-testid="stAlert"][data-baseweb="notification"] {
+    border-left: 4px solid #4285f4 !important;
+}
+
+/* ===== Success toasts ===== */
+[data-testid="stToast"] {
+    background: rgba(15,23,42,0.95) !important;
+    border: 1px solid rgba(52,168,83,0.4) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px);
+    color: #e2e8f0 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+
+/* ===== Number input ===== */
+[data-testid="stNumberInput"] input {
+    background: rgba(30,41,59,0.8) !important;
+    border: 1px solid rgba(51,65,85,0.8) !important;
+    border-radius: 8px !important;
+    color: #e2e8f0 !important;
+}
+
+/* ===== Column wrapper spacing ===== */
+div[data-testid="column"] {
+    padding: 0 0.3rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -545,9 +855,9 @@ def build_plotly_graph(
     fig.update_layout(
         title=dict(
             text="Supply Chain Network — Global Disruption Impact Map",
-            font=dict(color="#e2e8f0", size=16, family="Inter"),
+            font=dict(color="#e2e8f0", size=16, family="Space Grotesk, Inter, sans-serif"),
         ),
-        paper_bgcolor="#0a0e1a",
+        paper_bgcolor="#060b18",
         margin=dict(l=0, r=0, t=45, b=0),
         height=580,
         annotations=[
@@ -557,7 +867,7 @@ def build_plotly_graph(
                      if color_by == "tier" else
                      "🔴 Disruption Source  🟠 Critical Cascade  🟡 High Risk  🔵 Monitoring  ⚫ Unaffected"
                  ),
-                 font=dict(color="#94a3b8", size=11, family="Inter"),
+                 font=dict(color="#94a3b8", size=11, family="Space Grotesk, Inter, sans-serif"),
                  bgcolor="rgba(10,14,26,0.7)", borderpad=6, align="left"),
         ],
     )
@@ -691,7 +1001,7 @@ def build_cascade_animation(
                         f"<b style='color:#ef4444;'>Cascade Depth {depth}</b>"
                         f" — <b style='color:#a5b4fc;'>{n_affected}</b> nodes affected"
                     ),
-                    font=dict(color="#e2e8f0", size=15, family="Inter"),
+                    font=dict(color="#e2e8f0", size=15, family="Space Grotesk, Inter, sans-serif"),
                 )]
             ),
         ))
@@ -709,7 +1019,7 @@ def build_cascade_animation(
         showcoastlines=True, coastlinecolor="#2d3f5f",
         showcountries=True,  countrycolor="#1e3050",
         showframe=False,
-        bgcolor="#0a0e1a",
+        bgcolor="#060b18",
     )
 
     # Animation controls
@@ -742,7 +1052,7 @@ def build_cascade_animation(
     ]
 
     fig.update_layout(
-        paper_bgcolor="#0a0e1a",
+        paper_bgcolor="#060b18",
         margin=dict(l=0, r=0, t=60, b=80),
         height=560,
         updatemenus=[dict(
@@ -752,7 +1062,7 @@ def build_cascade_animation(
             xanchor="center", yanchor="top",
             bgcolor="#1e293b",
             bordercolor="#334155",
-            font=dict(color="#e2e8f0", size=13, family="Inter"),
+            font=dict(color="#e2e8f0", size=13, family="Space Grotesk, Inter, sans-serif"),
             buttons=[play_btn, pause_btn],
             pad={"r": 10, "t": 4},
         )],
@@ -766,7 +1076,7 @@ def build_cascade_animation(
                 prefix="Cascade depth: ",
                 visible=True,
                 xanchor="center",
-                font=dict(color="#a5b4fc", size=13, family="Inter"),
+                font=dict(color="#a5b4fc", size=13, family="Space Grotesk, Inter, sans-serif"),
             ),
             font=dict(color="#94a3b8", size=11),
             bgcolor="#1e293b",
@@ -779,7 +1089,7 @@ def build_cascade_animation(
             x=0.5, y=1.04, xref="paper", yref="paper", showarrow=False,
             text=f"<b style='color:#ef4444;'>Cascade Depth 0</b> — "
                  f"<b style='color:#a5b4fc;'>{sum(1 for d in cascade_result.values() if d==0)}</b> origin nodes",
-            font=dict(color="#e2e8f0", size=15, family="Inter"),
+            font=dict(color="#e2e8f0", size=15, family="Space Grotesk, Inter, sans-serif"),
         )],
     )
 
@@ -791,20 +1101,26 @@ def build_cascade_animation(
 # ---------------------------------------------------------------------------
 def render_sidebar():
     with st.sidebar:
-        # Logo/title
+        # Logo/title — Google Hackathon branded
         st.markdown("""
-        <div style="text-align:center; padding: 1rem 0;">
-            <div style="font-size: 2.5rem; margin-bottom: 0.3rem;">🔗</div>
-            <div style="font-size: 1.3rem; font-weight: 700; 
-                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                        -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        <div style="text-align:center; padding: 0.8rem 0 0.5rem;">
+            <div style="font-size: 2.8rem; margin-bottom: 0.4rem; animation: float 3s ease-in-out infinite;">🔗</div>
+            <div style="font-size: 1.5rem; font-weight: 800;
+                        background: linear-gradient(90deg, #4285f4, #34a853, #fbbc04, #ea4335);
+                        background-size: 200% auto;
+                        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                        animation: shimmer 3s linear infinite;
+                        font-family: 'Space Grotesk', sans-serif;">
                 SupplAI
             </div>
-            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.2rem;">
-                AI Supply Chain Monitor
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.15rem; letter-spacing: 0.06em; text-transform: uppercase;"> 
+                AI Supply Chain Intelligence
+            </div>
+            <div style="margin-top: 0.6rem;">
+                <span class="hackathon-badge">🏆 Google AI Hackathon 2025</span>
             </div>
         </div>
-        <hr style="border-color: #1e293b; margin: 0.5rem 0 1rem;">
+        <hr style="border-color: rgba(66,133,244,0.15); margin: 0.8rem 0;">
         """, unsafe_allow_html=True)
 
         st.markdown("### 🔍 Disruption Input")
@@ -900,9 +1216,17 @@ def render_sidebar():
 
         st.markdown("---")
         st.markdown("""
-        <div style="font-size: 0.7rem; color: #475569; text-align: center;">
-            Powered by NetworkX · XGBoost · Gemini AI<br>
-            Built for AI Hackathon 2024
+        <div style="font-size: 0.68rem; color: #334155; text-align: center; padding: 0.5rem 0; line-height: 1.8;">
+            <span style="color:#4285f4;">■</span>
+            <span style="color:#ea4335;">■</span>
+            <span style="color:#fbbc04;">■</span>
+            <span style="color:#34a853;">■</span>
+            <br>
+            <span style="color:#475569;">Powered by</span>
+            <span style="color:#4285f4; font-weight:600;"> Google Gemini</span> ·
+            <span style="color:#64748b;">NetworkX · XGBoost · SHAP</span>
+            <br>
+            <span style="color:#334155;">© 2025 — Built for Google AI Hackathon</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -948,9 +1272,38 @@ def main():
             st.session_state["_last_refresh_count"] = refresh_count
             st.session_state["auto_load_attempted"]  = False   # force re-fetch on next cycle
 
-    # ---- Header ----
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # ---- Hero Header ----
     summary = get_graph_summary(G)
+    st.markdown(f"""
+    <div class="hero-banner">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+            <div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.3rem;">
+                    <span style="font-size:2rem;">🔗</span>
+                    <h1 style="margin:0; font-size:1.75rem; font-weight:800;
+                               background:linear-gradient(90deg,#4285f4,#34a853,#fbbc04,#ea4335);
+                               background-size:200% auto;
+                               -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                               animation:shimmer 4s linear infinite;
+                               font-family:'Space Grotesk',sans-serif; line-height:1.2;">SupplAI</h1>
+                </div>
+                <p style="margin:0; color:#64748b; font-size:0.88rem; letter-spacing:0.02em;">
+                    <span class="live-dot"></span> Live AI Supply Chain Disruption Intelligence Platform
+                </p>
+            </div>
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+                <span class="stat-chip">🌐 <b>{summary['nodes']:,}</b> Nodes</span>
+                <span class="stat-chip">🔗 <b>{summary['edges']:,}</b> Routes</span>
+                <span class="stat-chip">🌍 <b>{summary['countries']}</b> Countries</span>
+                <span class="stat-chip">📊 <b>{summary['avg_degree']:,.1f}</b> Avg Degree</span>
+                <span class="hackathon-badge">🏆 Google AI Hackathon</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Secondary metric row
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("🌐 Network Nodes",   f"{summary['nodes']:,}")
     col2.metric("🔗 Supply Routes",   f"{summary['edges']:,}")
     col3.metric("🌍 Countries",       f"{summary['countries']}")
@@ -1092,43 +1445,75 @@ def main():
     results = st.session_state.get("results")
 
     if results is None:
-        # Welcome screen
+        # Welcome screen — Google Hackathon premium landing
         st.markdown("""
-        <div style="text-align:center; padding: 4rem 2rem; background: transparent;">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">🔗</div>
-            <div style="font-size: 2rem; font-weight: 700; 
-                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                        margin-bottom: 0.8rem;">
-                SupplAI — Supply Chain Disruption Monitor
+        <div style="text-align:center; padding: 3.5rem 2rem 1rem; background: transparent;">
+            <div style="margin-bottom:1.2rem;">
+                <span class="hackathon-badge" style="font-size:0.8rem;">🏆 Google AI Hackathon 2025 — Supply Chain Track</span>
             </div>
-            <div style="color: #94a3b8; font-size: 1.1rem; max-width: 600px; margin: 0 auto 2rem;">
-                Enter a disruption event in the sidebar and click <b style="color: #a5b4fc;">Analyse Disruption</b>
-                to see real-time cascade simulation, risk scoring, rerouting suggestions,
-                and an AI-generated operations brief.
+            <div style="font-size: 3.5rem; margin-bottom: 1rem; animation: float 3s ease-in-out infinite;">🔗</div>
+            <h1 style="font-size:2.5rem; font-weight:800; margin-bottom:0.6rem; line-height:1.2;
+                       background:linear-gradient(90deg,#4285f4 0%,#34a853 33%,#fbbc04 66%,#ea4335 100%);
+                       background-size:200% auto;
+                       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                       animation:shimmer 4s linear infinite;
+                       font-family:'Space Grotesk',sans-serif;">
+                SupplAI
+            </h1>
+            <p style="color:#64748b; font-size:1.05rem; max-width:580px; margin:0 auto 0.8rem; line-height:1.6;">
+                Real-time AI supply chain disruption intelligence powered by
+                <span style="color:#4285f4;font-weight:600;">Google Gemini</span>.
+                Simulate cascades · Score risk · Plan reroutes · Brief your CSCO.
+            </p>
+            <div style="display:flex; justify-content:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:2.5rem;">
+                <span class="stat-chip">⚡ Cascade Simulation</span>
+                <span class="stat-chip">🧠 SHAP Explainability</span>
+                <span class="stat-chip">🔍 Anomaly Detection</span>
+                <span class="stat-chip">🤖 AI Agent Loop</span>
             </div>
-            <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 2rem;">
-                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 1.8rem 1.5rem; width: 190px; border: 1px solid #334155; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.2s ease;">
-                    <div style="font-size: 2.2rem; margin-bottom: 0.6rem;">🌐</div>
-                    <div style="font-weight: 700; font-size: 1rem; color: #e2e8f0; margin-bottom: 0.4rem;">Network Graph</div>
-                    <div style="color: #94a3b8; font-size: 0.82rem; line-height: 1.4;">Interactive supply chain map</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 1.8rem 1.5rem; width: 190px; border: 1px solid #334155; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.2s ease;">
-                    <div style="font-size: 2.2rem; margin-bottom: 0.6rem;">🔥</div>
-                    <div style="font-weight: 700; font-size: 1rem; color: #e2e8f0; margin-bottom: 0.4rem;">Risk Analysis</div>
-                    <div style="color: #94a3b8; font-size: 0.82rem; line-height: 1.4;">ML-powered scoring</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 1.8rem 1.5rem; width: 190px; border: 1px solid #334155; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.2s ease;">
-                    <div style="font-size: 2.2rem; margin-bottom: 0.6rem;">🔁</div>
-                    <div style="font-weight: 700; font-size: 1rem; color: #e2e8f0; margin-bottom: 0.4rem;">Rerouting</div>
-                    <div style="color: #94a3b8; font-size: 0.82rem; line-height: 1.4;">Dijkstra alternate paths</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 1.8rem 1.5rem; width: 190px; border: 1px solid #334155; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.2s ease;">
-                    <div style="font-size: 2.2rem; margin-bottom: 0.6rem;">🤖</div>
-                    <div style="font-weight: 700; font-size: 1rem; color: #e2e8f0; margin-bottom: 0.4rem;">AI Brief</div>
-                    <div style="color: #94a3b8; font-size: 0.82rem; line-height: 1.4;">Gemini-powered insights</div>
-                </div>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:1.5rem; flex-wrap:wrap; margin:0 auto; max-width:1000px; padding-bottom:1rem;">
+            <div class="feature-card" style="border-top:3px solid #4285f4;">
+                <div class="feature-card-icon" style="animation-delay:0s;">🌐</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#e2e8f0;margin-bottom:0.35rem;font-family:'Space Grotesk',sans-serif;">Network Graph</div>
+                <div style="color:#64748b;font-size:0.78rem;line-height:1.5;">Interactive geo-scatter supply chain map with cascade animation</div>
             </div>
+            <div class="feature-card" style="border-top:3px solid #ea4335;">
+                <div class="feature-card-icon" style="animation-delay:0.3s;">🔥</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#e2e8f0;margin-bottom:0.35rem;font-family:'Space Grotesk',sans-serif;">Risk Analysis</div>
+                <div style="color:#64748b;font-size:0.78rem;line-height:1.5;">XGBoost ML scoring with tier breakdown and material flows</div>
+            </div>
+            <div class="feature-card" style="border-top:3px solid #34a853;">
+                <div class="feature-card-icon" style="animation-delay:0.6s;">🔁</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#e2e8f0;margin-bottom:0.35rem;font-family:'Space Grotesk',sans-serif;">Rerouting</div>
+                <div style="color:#64748b;font-size:0.78rem;line-height:1.5;">Dijkstra alternate paths with upstream validation checks</div>
+            </div>
+            <div class="feature-card" style="border-top:3px solid #fbbc04;">
+                <div class="feature-card-icon" style="animation-delay:0.9s;">🤖</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#e2e8f0;margin-bottom:0.35rem;font-family:'Space Grotesk',sans-serif;">Gemini AI Brief</div>
+                <div style="color:#64748b;font-size:0.78rem;line-height:1.5;">Structured CSCO operations brief generated by Gemini 1.5</div>
+            </div>
+            <div class="feature-card" style="border-top:3px solid #8b5cf6;">
+                <div class="feature-card-icon" style="animation-delay:1.2s;">🔍</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#e2e8f0;margin-bottom:0.35rem;font-family:'Space Grotesk',sans-serif;">ML Explainability</div>
+                <div style="color:#64748b;font-size:0.78rem;line-height:1.5;">SHAP waterfall & bar charts for full model transparency</div>
+            </div>
+            <div class="feature-card" style="border-top:3px solid #f97316;">
+                <div class="feature-card-icon" style="animation-delay:1.5s;">🚨</div>
+                <div style="font-weight:700;font-size:0.95rem;color:#e2e8f0;margin-bottom:0.35rem;font-family:'Space Grotesk',sans-serif;">Anomaly Detection</div>
+                <div style="color:#64748b;font-size:0.78rem;line-height:1.5;">Isolation Forest for structural network outlier detection</div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:1.5rem;">
+            <p style="color:#334155;font-size:0.8rem;">
+                <span style="color:#4285f4;">■</span>
+                <span style="color:#ea4335;">■</span>
+                <span style="color:#fbbc04;">■</span>
+                <span style="color:#34a853;">■</span>
+                &nbsp; Powered by Google Gemini · NetworkX · XGBoost · SHAP · Plotly
+            </p>
         </div>
         """, unsafe_allow_html=True)
         return
@@ -1142,18 +1527,31 @@ def main():
     brief               = results["brief"]
     shap_results        = results.get("shap_results", {})
 
-    # ---- Cascade stats banner ----
+    # ---- Cascade stats banner — premium redesign ----
     sev = disruption_info["severity"].upper()
-    badge_class = {"HIGH": "badge-high", "MEDIUM": "badge-medium", "LOW": "badge-low"}.get(sev, "badge-medium")
+    sev_color  = {"HIGH": "#ea4335", "MEDIUM": "#fbbc04", "LOW": "#34a853"}.get(sev, "#fbbc04")
+    sev_bg     = {"HIGH": "rgba(234,67,53,0.12)", "MEDIUM": "rgba(251,188,4,0.10)", "LOW": "rgba(52,168,83,0.12)"}.get(sev, "rgba(251,188,4,0.10)")
+    sev_border = {"HIGH": "rgba(234,67,53,0.35)", "MEDIUM": "rgba(251,188,4,0.30)", "LOW": "rgba(52,168,83,0.30)"}.get(sev, "rgba(251,188,4,0.30)")
+    cat_label  = disruption_info['category'].replace('_',' ').title()
+    n_countries = risk_df['country'].nunique() if not risk_df.empty else 0
 
     st.markdown(f"""
-    <div class="risk-card" style="display:flex; align-items:center; gap: 1.5rem; flex-wrap: wrap;">
-        <span class="{badge_class}">{sev} SEVERITY</span>
-        <span>📂 {disruption_info['category'].replace('_',' ').title()}</span>
-        <span>🏙️ <b>{cascade_stats['seed_count']}</b> origin nodes</span>
-        <span>⚡ <b>{cascade_stats['total_affected']}</b> total nodes in cascade</span>
-        <span>📏 <b>{cascade_stats['max_depth']}</b> max cascade depth</span>
-        <span>🌍 <b>{risk_df['country'].nunique() if not risk_df.empty else 0}</b> countries affected</span>
+    <div style="background:linear-gradient(135deg,rgba(15,23,42,0.92),rgba(6,11,24,0.96));
+                border:1px solid rgba(66,133,244,0.18); border-radius:16px;
+                padding:1rem 1.4rem; margin:0.4rem 0;
+                backdrop-filter:blur(10px);
+                box-shadow:0 2px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+                display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <span style="background:{sev_bg}; color:{sev_color};
+                     border:1px solid {sev_border}; border-radius:8px;
+                     padding:5px 14px; font-size:0.75rem; font-weight:800;
+                     letter-spacing:0.08em; text-transform:uppercase;
+                     font-family:'Space Grotesk',sans-serif;">{sev} SEVERITY</span>
+        <span class="stat-chip">📂 {cat_label}</span>
+        <span class="stat-chip">🏙️ <b>{cascade_stats['seed_count']}</b> origins</span>
+        <span class="stat-chip">⚡ <b>{cascade_stats['total_affected']}</b> nodes</span>
+        <span class="stat-chip">📏 depth <b>{cascade_stats['max_depth']}</b></span>
+        <span class="stat-chip">🌍 <b>{n_countries}</b> countries</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1162,23 +1560,23 @@ def main():
         critical_nodes = risk_df[risk_df["risk_score"] >= 0.8]
         if not critical_nodes.empty:
             top_critical = critical_nodes.head(3)
-            node_labels  = ", ".join(
-                f"<b>{r['city_name']}</b> ({r['country']}) — {r['risk_score']:.2f}"
+            node_labels  = " &nbsp;·&nbsp; ".join(
+                f"<b style='color:#fca5a5;'>{r['city_name']}</b> <span style='color:#7f1d1d;'>({r['country']})</span> <span style='color:#ef4444;font-weight:700;'>{r['risk_score']:.2f}</span>"
                 for _, r in top_critical.iterrows()
             )
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #450a0a, #7f1d1d);
-                        border: 1px solid #ef4444; border-radius: 10px;
-                        padding: 0.9rem 1.2rem; margin: 0.8rem 0;
-                        display: flex; align-items: center; gap: 1rem;">
-                <span style="font-size: 1.5rem;">🚨</span>
-                <div>
-                    <div style="color:#fca5a5; font-weight:700; font-size:0.95rem;">
-                        CRITICAL RISK ALERT — {len(critical_nodes)} node(s) above 0.8 threshold
+            <div style="background:linear-gradient(135deg,rgba(127,29,29,0.35),rgba(69,10,10,0.5));
+                        border:1px solid rgba(234,67,53,0.4); border-radius:12px;
+                        padding:0.85rem 1.2rem; margin:0.5rem 0;
+                        backdrop-filter:blur(8px);
+                        display:flex; align-items:center; gap:1rem;">
+                <span style="font-size:1.4rem;">🚨</span>
+                <div style="flex:1;">
+                    <div style="color:#fca5a5; font-weight:700; font-size:0.9rem; margin-bottom:0.25rem;
+                                font-family:'Space Grotesk',sans-serif;">
+                        CRITICAL RISK ALERT &nbsp;&mdash;&nbsp; {len(critical_nodes)} node(s) above 0.80 threshold
                     </div>
-                    <div style="color:#fecaca; font-size:0.85rem; margin-top:0.2rem;">
-                        {node_labels}
-                    </div>
+                    <div style="color:#fecaca; font-size:0.82rem; line-height:1.6;">{node_labels}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1190,27 +1588,27 @@ def main():
             tier3_ct = len(hidden_risk[hidden_risk["tier"].astype(int) == 3])
             tier4_ct = len(hidden_risk[hidden_risk["tier"].astype(int) >= 4])
             parts    = []
-            if tier3_ct: parts.append(f"<b>{tier3_ct}</b> Tier-3")
-            if tier4_ct: parts.append(f"<b>{tier4_ct}</b> Tier-4")
+            if tier3_ct: parts.append(f"<b style='color:#c4b5fd;'>{tier3_ct}</b> Tier-3")
+            if tier4_ct: parts.append(f"<b style='color:#a78bfa;'>{tier4_ct}</b> Tier-4")
             st.markdown(f"""
-            <div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);
-                        border:1px solid #7c3aed; border-radius:10px;
-                        padding:0.7rem 1.2rem; margin:0.5rem 0;
+            <div style="background:linear-gradient(135deg,rgba(26,10,46,0.7),rgba(45,27,78,0.75));
+                        border:1px solid rgba(124,58,237,0.4); border-radius:12px;
+                        padding:0.75rem 1.2rem; margin:0.4rem 0;
+                        backdrop-filter:blur(8px);
                         display:flex; align-items:center; gap:1rem;">
-                <span style="font-size:1.4rem;">🔍</span>
+                <span style="font-size:1.3rem;">🔍</span>
                 <div>
-                    <div style="color:#c4b5fd; font-weight:700; font-size:0.9rem;">
-                        DEEP-TIER HIDDEN RISK — {" + ".join(parts)} upstream nodes at elevated risk
+                    <div style="color:#c4b5fd; font-weight:700; font-size:0.88rem;
+                                font-family:'Space Grotesk',sans-serif; margin-bottom:0.15rem;">
+                        DEEP-TIER HIDDEN RISK &nbsp;&mdash;&nbsp; {" + ".join(parts)} upstream nodes at elevated risk
                     </div>
-                    <div style="color:#ddd6fe; font-size:0.82rem; margin-top:0.15rem;">
-                        These Tier-3/4 suppliers are feeding into your Tier-1 chain.
+                    <div style="color:#a78bfa; font-size:0.8rem;">
+                        These Tier-3/4 suppliers feed into your Tier-1 chain.
                         See <b>Risk Analysis → Tier Breakdown</b> for details.
                     </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
 
     # ---- 7 tabs ----
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -1307,10 +1705,10 @@ def main():
                     textposition="outside",
                 ))
                 bar_fig.update_layout(
-                    paper_bgcolor="#0a0e1a", plot_bgcolor="#0a0e1a",
+                    paper_bgcolor="#060b18", plot_bgcolor="#060b18",
                     xaxis=dict(title="Cascade Depth", color="#94a3b8", gridcolor="#1e293b"),
                     yaxis=dict(title="Nodes Affected", color="#94a3b8", gridcolor="#1e293b"),
-                    font=dict(color="#e2e8f0", family="Inter"),
+                    font=dict(color="#e2e8f0", family="Space Grotesk, Inter, sans-serif"),
                     height=280, margin=dict(t=20, b=30, l=20, r=20),
                 )
                 st.plotly_chart(bar_fig, use_container_width=True)
@@ -1431,11 +1829,11 @@ def main():
                                   f"<extra></extra>",
                 ))
             tier_fig.update_layout(
-                paper_bgcolor="#0a0e1a", plot_bgcolor="#0a0e1a",
+                paper_bgcolor="#060b18", plot_bgcolor="#060b18",
                 xaxis=dict(title="Supply Chain Tier", color="#94a3b8", gridcolor="#1e293b"),
                 yaxis=dict(title="Average Risk Score", color="#94a3b8", gridcolor="#1e293b",
                            range=[0, 1]),
-                font=dict(color="#e2e8f0", family="Inter"),
+                font=dict(color="#e2e8f0", family="Space Grotesk, Inter, sans-serif"),
                 height=250, margin=dict(t=15, b=30, l=20, r=20),
                 showlegend=False,
                 bargap=0.3,
@@ -1515,13 +1913,13 @@ def main():
                     ),
                 ))
                 mat_fig.update_layout(
-                    paper_bgcolor="#0a0e1a", plot_bgcolor="#0a0e1a",
+                    paper_bgcolor="#060b18", plot_bgcolor="#060b18",
                     xaxis=dict(
                         title="Material Flow Type", color="#94a3b8",
                         gridcolor="#1e293b", tickangle=-30,
                     ),
                     yaxis=dict(title="Disrupted Routes", color="#94a3b8", gridcolor="#1e293b"),
-                    font=dict(color="#e2e8f0", family="Inter"),
+                    font=dict(color="#e2e8f0", family="Space Grotesk, Inter, sans-serif"),
                     height=300, margin=dict(t=15, b=100, l=20, r=20),
                 )
                 st.plotly_chart(mat_fig, use_container_width=True)
@@ -1580,10 +1978,10 @@ def main():
                 name="Risk Scores",
             ))
             risk_fig.update_layout(
-                paper_bgcolor="#0a0e1a", plot_bgcolor="#0a0e1a",
+                paper_bgcolor="#060b18", plot_bgcolor="#060b18",
                 xaxis=dict(title="Risk Score", color="#94a3b8", gridcolor="#1e293b"),
                 yaxis=dict(title="Node Count", color="#94a3b8", gridcolor="#1e293b"),
-                font=dict(color="#e2e8f0", family="Inter"),
+                font=dict(color="#e2e8f0", family="Space Grotesk, Inter, sans-serif"),
                 height=260, margin=dict(t=10, b=30, l=20, r=20),
                 bargap=0.1,
             )
@@ -2429,6 +2827,69 @@ def main():
                         key="reject_agent",
                     ):
                         st.warning("Agent decisions rejected. Re-run analysis to generate a new plan.")
+
+    # Premium footer
+    render_footer()
+
+
+def render_footer():
+    """Render a premium hackathon footer at the bottom of the main area."""
+    st.markdown("""
+    <div style="margin-top:3rem; padding:1.2rem 1.5rem;
+                background:linear-gradient(135deg,rgba(10,14,26,0.95),rgba(6,11,24,0.98));
+                border:1px solid rgba(66,133,244,0.12); border-radius:16px;
+                display:flex; align-items:center; justify-content:space-between;
+                flex-wrap:wrap; gap:1rem; backdrop-filter:blur(12px);">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.4rem;">🔗</span>
+            <div>
+                <div style="font-weight:700; font-size:0.92rem;
+                            background:linear-gradient(90deg,#4285f4,#34a853,#fbbc04,#ea4335);
+                            background-size:200% auto;
+                            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                            animation:shimmer 4s linear infinite;
+                            font-family:'Space Grotesk',sans-serif;">SupplAI</div>
+                <div style="color:#334155; font-size:0.72rem; margin-top:1px;">
+                    AI Supply Chain Disruption Intelligence
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+            <span style="background:rgba(66,133,244,0.1); border:1px solid rgba(66,133,244,0.2);
+                         border-radius:6px; padding:3px 10px; font-size:0.72rem; color:#4285f4;">
+                Google Gemini
+            </span>
+            <span style="background:rgba(52,168,83,0.1); border:1px solid rgba(52,168,83,0.2);
+                         border-radius:6px; padding:3px 10px; font-size:0.72rem; color:#34a853;">
+                NetworkX
+            </span>
+            <span style="background:rgba(251,188,4,0.1); border:1px solid rgba(251,188,4,0.2);
+                         border-radius:6px; padding:3px 10px; font-size:0.72rem; color:#fbbc04;">
+                XGBoost
+            </span>
+            <span style="background:rgba(234,67,53,0.1); border:1px solid rgba(234,67,53,0.2);
+                         border-radius:6px; padding:3px 10px; font-size:0.72rem; color:#ea4335;">
+                SHAP
+            </span>
+            <span style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2);
+                         border-radius:6px; padding:3px 10px; font-size:0.72rem; color:#8b5cf6;">
+                Plotly
+            </span>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:0.72rem; color:#475569; margin-bottom:2px;">
+                <span style="color:#4285f4;">■</span>
+                <span style="color:#ea4335;">■</span>
+                <span style="color:#fbbc04;">■</span>
+                <span style="color:#34a853;">■</span>
+                &nbsp; Google AI Hackathon 2025
+            </div>
+            <div style="font-size:0.68rem; color:#1e293b;">
+                Supply Chain Intelligence Track
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
