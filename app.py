@@ -737,37 +737,48 @@ def build_plotly_graph(
         return 7
 
     # ------------------------------------------------------------------ #
-    # Arc lines for edges that are within the cascade                     #
+    # Arc lines — only high-priority cascade edges to keep JSON small    #
+    # Priority: seed→depth1, depth1→depth2, then sample remaining.      #
+    # Hard cap at 400 arcs to prevent browser JSON.parse failure.       #
     # ------------------------------------------------------------------ #
+    MAX_ARCS = 400
+
+    # Depth lookup for quick access
+    depth_map = cascade_result  # node -> depth int
+
+    # Sort edges by priority: lower max-depth of endpoints = higher priority
+    priority_edges = []
+    for src, dst in G.edges():
+        if src in cascade_nodes and dst in cascade_nodes:
+            d = depth_map.get(src, 99) + depth_map.get(dst, 99)
+            priority_edges.append((d, src, dst))
+    priority_edges.sort()   # lowest combined depth first
+    priority_edges = priority_edges[:MAX_ARCS]
+
     arc_lats, arc_lons = [], []
-    # Midpoint markers — one per disrupted edge, carries material hover text
     mid_lats, mid_lons, mid_texts = [], [], []
 
-    for src, dst in G.edges():
+    for _, src, dst in priority_edges:
         src_lat = G.nodes[src].get("lat", 0)
         src_lon = G.nodes[src].get("lon", 0)
         dst_lat = G.nodes[dst].get("lat", 0)
         dst_lon = G.nodes[dst].get("lon", 0)
-        if src in cascade_nodes and dst in cascade_nodes:
-            arc_lats += [src_lat, dst_lat, None]
-            arc_lons += [src_lon, dst_lon, None]
+        arc_lats += [src_lat, dst_lat, None]
+        arc_lons += [src_lon, dst_lon, None]
 
-            # Midpoint for the hover label
-            mid_lat = (src_lat + dst_lat) / 2
-            mid_lon = (src_lon + dst_lon) / 2
-            material = get_edge_material(G, src, dst)
-            src_name = G.nodes[src].get("city_name", src)
-            dst_name = G.nodes[dst].get("city_name", dst)
-            hover_txt = (
-                f"<b>📦 {material}</b><br>"
-                f"{src_name} → {dst_name}<br>"
-                f"<span style='color:#94a3b8;font-size:0.85em;'>"
-                f"{G.nodes[src].get('country','?')} → {G.nodes[dst].get('country','?')}"
-                f"</span>"
-            )
-            mid_lats.append(mid_lat)
-            mid_lons.append(mid_lon)
-            mid_texts.append(hover_txt)
+        mid_lat  = (src_lat + dst_lat) / 2
+        mid_lon  = (src_lon + dst_lon) / 2
+        material = get_edge_material(G, src, dst)
+        src_name = G.nodes[src].get("city_name", src)
+        dst_name = G.nodes[dst].get("city_name", dst)
+        hover_txt = (
+            f"<b>{material}</b><br>"
+            f"{src_name} to {dst_name}<br>"
+            f"{G.nodes[src].get('country','?')} to {G.nodes[dst].get('country','?')}"
+        )
+        mid_lats.append(mid_lat)
+        mid_lons.append(mid_lon)
+        mid_texts.append(hover_txt)
 
     arc_trace = go.Scattergeo(
         lat=arc_lats, lon=arc_lons,
@@ -778,7 +789,7 @@ def build_plotly_graph(
         showlegend=False,
     )
 
-    # Invisible midpoint markers — visible only on hover to show material
+    # Midpoint hover markers (capped — same count as arcs)
     material_trace = go.Scattergeo(
         lat=mid_lats, lon=mid_lons,
         mode="markers",
@@ -809,17 +820,17 @@ def build_plotly_graph(
         rs    = risk_lookup.get(node, 0)
         depth = cascade_result.get(node, -1)
         tier  = int(nd.get("tier", 3))
-        status_str   = f"⚡ Cascade depth: {depth}" if depth >= 0 else "✅ Unaffected"
+        status_str   = f"Cascade depth: {depth}" if depth >= 0 else "Unaffected"
         material_lbl = get_node_material_label(G, node)
         tier_lbl     = TIER_LABELS.get(tier, f"Tier-{tier}")
         hover = (
             f"<b>{nd.get('city_name', node)}</b><br>"
-            f"🌍 {nd.get('country', '?')} · {nd.get('region', '?')}<br>"
-            f"🏭 Produces: <b>{material_lbl}</b><br>"
-            f"📦 Category: {nd.get('product_category', '?')}<br>"
-            f"🔗 <b>{tier_lbl}</b><br>"
+            f"{nd.get('country', '?')} | {nd.get('region', '?')}<br>"
+            f"Produces: <b>{material_lbl}</b><br>"
+            f"Category: {nd.get('product_category', '?')}<br>"
+            f"<b>{tier_lbl}</b><br>"
             f"{status_str}<br>"
-            f"🎯 Risk Score: <b>{rs:.3f}</b>"
+            f"Risk Score: <b>{rs:.3f}</b>"
         )
         lats.append(lat)
         lons.append(lon)
@@ -863,9 +874,9 @@ def build_plotly_graph(
         annotations=[
             dict(x=0.01, y=0.02, xref="paper", yref="paper", showarrow=False,
                  text=(
-                     "🔴 Tier-1 Direct  🟠 Tier-2  🟡 Tier-3  🟢 Tier-4  🔵 Tier-5  ⚫ Unaffected"
+                     "&#9632; Tier-1 Direct &nbsp; &#9632; Tier-2 &nbsp; &#9632; Tier-3 &nbsp; &#9632; Tier-4 &nbsp; &#9632; Tier-5 &nbsp; &#9632; Unaffected"
                      if color_by == "tier" else
-                     "🔴 Disruption Source  🟠 Critical Cascade  🟡 High Risk  🔵 Monitoring  ⚫ Unaffected"
+                     "&#9632; Disruption Source &nbsp; &#9632; Critical Cascade &nbsp; &#9632; High Risk &nbsp; &#9632; Monitoring &nbsp; &#9632; Unaffected"
                  ),
                  font=dict(color="#94a3b8", size=11, family="Space Grotesk, Inter, sans-serif"),
                  bgcolor="rgba(10,14,26,0.7)", borderpad=6, align="left"),
@@ -1313,6 +1324,162 @@ def main():
     st.markdown("---")
 
     # ---------------------------------------------------------------------------
+    # Helper: Disruption Focus Map — show ONLY affected nodes + reroute paths
+    # ---------------------------------------------------------------------------
+    def build_focus_map(G, cascade_result, risk_df, reroute_suggestions, seed_nodes):
+        """
+        Build a Plotly Scattergeo showing only:
+          • Seed nodes (red, pulsing border)
+          • Cascade nodes coloured by depth
+          • Alternate route paths (green lines + intermediate nodes)
+        Everything else is hidden.
+        """
+        import plotly.graph_objects as go
+
+        depth_colors = {0: "#ef4444", 1: "#f97316", 2: "#eab308",
+                        3: "#3b82f6", 4: "#22c55e", 5: "#8b5cf6"}
+
+        # Collect all nodes to show
+        focus_nodes = set(cascade_result.keys())
+
+        # Collect reroute path nodes & edges
+        reroute_edges = []   # list of (lat_seq, lon_seq, label)
+        for r in reroute_suggestions:
+            if r["status"] == "✅ Alternate Found" and r.get("alternate_path"):
+                path = r["alternate_path"]
+                focus_nodes.update(path)
+                lats = [G.nodes[n].get("lat", 0) for n in path if n in G.nodes]
+                lons = [G.nodes[n].get("lon", 0) for n in path if n in G.nodes]
+                src_name  = r.get("source_name",      path[0])
+                dst_name  = r.get("destination_name", path[-1])
+                vstat     = r.get("route_validation", "")
+                reroute_edges.append((lats, lons, f"{src_name} → {dst_name}<br>{vstat}"))
+
+        traces = []
+
+        # ── Reroute path lines (green) ────────────────────────────────────────
+        for lats, lons, label in reroute_edges:
+            # Add None separators to break lines between segments
+            seg_lats, seg_lons = [], []
+            for i in range(len(lats)):
+                seg_lats.append(lats[i])
+                seg_lons.append(lons[i])
+                if i < len(lats) - 1:
+                    seg_lats.append(None)
+                    seg_lons.append(None)
+            traces.append(go.Scattergeo(
+                lat=seg_lats, lon=seg_lons,
+                mode="lines",
+                line=dict(color="#22c55e", width=2.5),
+                hoverinfo="text", text=label,
+                name="Alternate Route",
+                showlegend=False,
+            ))
+
+        # ── Disrupted path lines (red dashed) ────────────────────────────────
+        for r in reroute_suggestions:
+            if r.get("disrupted_path") and len(r["disrupted_path"]) >= 2:
+                path = r["disrupted_path"]
+                lats = [G.nodes[n].get("lat", 0) for n in path if n in G.nodes]
+                lons = [G.nodes[n].get("lon", 0) for n in path if n in G.nodes]
+                traces.append(go.Scattergeo(
+                    lat=lats, lon=lons,
+                    mode="lines",
+                    line=dict(color="#ef4444", width=1.5, dash="dot"),
+                    hoverinfo="skip",
+                    name="Disrupted Route",
+                    showlegend=False,
+                ))
+
+        # ── Nodes ─────────────────────────────────────────────────────────────
+        node_lats, node_lons, node_text, node_colors, node_sizes, node_symbols = \
+            [], [], [], [], [], []
+
+        risk_lookup = {}
+        if not risk_df.empty and "node" in risk_df.columns:
+            risk_lookup = dict(zip(risk_df["node"], risk_df["risk_score"]))
+
+        for node in sorted(focus_nodes):
+            if node not in G.nodes:
+                continue
+            nd   = G.nodes[node]
+            depth = cascade_result.get(node, -1)
+            lat, lon = nd.get("lat", 0), nd.get("lon", 0)
+            city = nd.get("city_name", node)
+            country = nd.get("country", "")
+            industry = nd.get("product_category", "")
+            risk  = risk_lookup.get(node, 0)
+
+            if node in seed_nodes:
+                color  = "#ef4444"
+                size   = 16
+                symbol = "star"
+                label  = f"<b>DISRUPTED: {city}</b><br>{country} | {industry}<br>Depth 0 (Origin)"
+            elif depth >= 0:
+                color  = depth_colors.get(depth, "#64748b")
+                size   = max(8, 14 - depth * 2)
+                symbol = "circle"
+                label  = f"<b>{city}</b><br>{country} | {industry}<br>Cascade Depth {depth}<br>Risk: {risk:.0%}"
+            else:
+                # reroute intermediate node not in cascade
+                color  = "#22c55e"
+                size   = 10
+                symbol = "diamond"
+                label  = f"<b>{city}</b> (Alternate Hop)<br>{country} | {industry}"
+
+            node_lats.append(lat)
+            node_lons.append(lon)
+            node_text.append(label)
+            node_colors.append(color)
+            node_sizes.append(size)
+            node_symbols.append(symbol)
+
+        traces.append(go.Scattergeo(
+            lat=node_lats, lon=node_lons,
+            mode="markers",
+            marker=dict(
+                size=node_sizes,
+                color=node_colors,
+                symbol=node_symbols,
+                line=dict(color="#ffffff", width=1),
+                opacity=0.95,
+            ),
+            text=node_text,
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=False,
+        ))
+
+        # ── Legend annotations ─────────────────────────────────────────────────
+        n_alt = len([r for r in reroute_suggestions if r["status"] == "✅ Alternate Found"])
+        n_dis = len(seed_nodes)
+
+        fig = go.Figure(traces)
+        fig.update_layout(
+            geo=dict(
+                showland=True, landcolor="#1e293b",
+                showocean=True, oceancolor="#0f172a",
+                showcountries=True, countrycolor="#334155",
+                showcoastlines=True, coastlinecolor="#475569",
+                bgcolor="#0f172a", projection_type="natural earth",
+            ),
+            paper_bgcolor="#0f172a",
+            plot_bgcolor="#0f172a",
+            margin=dict(l=0, r=0, t=40, b=0),
+            height=520,
+            title=dict(
+                text=(
+                    f"<b style='color:#f8fafc'>Disruption Focus</b>"
+                    f"  <span style='color:#ef4444;font-size:13px'>★ {n_dis} disrupted</span>"
+                    f"  <span style='color:#22c55e;font-size:13px'>⟶ {n_alt} alternate route(s)</span>"
+                    f"  <span style='color:#64748b;font-size:13px'>● cascade nodes</span>"
+                ),
+                font=dict(size=14, color="#f8fafc"),
+                x=0.02,
+            ),
+        )
+        return fig
+
+    # ---------------------------------------------------------------------------
     # Helper: run full analysis pipeline for a given disruption_info dict
     # ---------------------------------------------------------------------------
     def _run_pipeline(disruption_info, max_depth):
@@ -1635,7 +1802,7 @@ def main():
         # View toggle
         view_mode = st.radio(
             "View mode",
-            ["🗺️ Risk Map", "🏭 Tier Structure Map", "🎬 Cascade Animation"],
+            ["🗺️ Risk Map", "🏭 Tier Structure Map", "🎬 Cascade Animation", "🎯 Disruption Focus"],
             horizontal=True,
             label_visibility="collapsed",
         )
@@ -1673,6 +1840,21 @@ def main():
                 color_by="tier",
             )
             st.plotly_chart(fig, use_container_width=True)
+
+        elif view_mode == "🎯 Disruption Focus":
+            st.markdown(
+                "<span style='color:#64748b;font-size:0.85rem;'>"
+                "Shows <b style='color:#ef4444;'>only the affected nodes</b> and "
+                "<b style='color:#22c55e;'>alternate route paths</b> — everything else hidden. "
+                "Red stars = origin. Dashed red = blocked route. Solid green = safe alternate."
+                "</span>",
+                unsafe_allow_html=True,
+            )
+            focus_fig = build_focus_map(
+                G, cascade_result, risk_df, reroute_suggestions,
+                seed_nodes=set(disruption_info["affected_nodes"]),
+            )
+            st.plotly_chart(focus_fig, use_container_width=True)
 
         else:
             fig = build_plotly_graph(

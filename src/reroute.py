@@ -17,6 +17,7 @@ Strategy
 Returns a list of recommendation dicts ready for the dashboard.
 """
 
+import random
 import networkx as nx
 import pandas as pd
 from typing import Dict, List, Optional, Any
@@ -195,47 +196,44 @@ def find_alternates(
 
     results: List[Dict[str, Any]] = []
 
-    # Find (source, destination) pairs whose path passes through a seed node
-    candidate_pairs = set()
+    # Build (source, disrupted_node, destination) triples from DIRECT edges.
+    # Using triples (not pairs) means the "original path" is always the concrete
+    # direct route that uses the disrupted node — Dijkstra's detour cannot
+    # accidentally bypass it and cause the pair to be dropped.
+    candidate_triples: List[tuple] = []
+    seen_pairs: set = set()
 
     for disrupted_node in seed_nodes:
-        # Predecessors (suppliers feeding into the blocked node)
         for pred in G.predecessors(disrupted_node):
             if pred not in seed_nodes:
-                # Route goes: pred → disrupted_node → succ
                 for succ in G.successors(disrupted_node):
                     if succ not in seed_nodes:
-                        candidate_pairs.add((pred, succ))
+                        pair = (pred, succ)
+                        if pair not in seen_pairs:
+                            seen_pairs.add(pair)
+                            candidate_triples.append((pred, disrupted_node, succ))
 
-    # Also try pairs from seed nodes to major distribution hubs
-    hubs = ["City_24", "City_35", "City_38", "City_53", "City_63", "City_47", "City_17"]
-    for seed in affected_nodes:
-        if seed in G:
-            for hub in hubs:
-                if hub in G and hub not in all_disrupted:
-                    candidate_pairs.add((seed, hub))
+    # Shuffle for variety then cap
+    random.shuffle(candidate_triples)
+    candidate_triples = candidate_triples[: top_pairs * 4]
 
-    # Evaluate each candidate pair
-    for source, destination in list(candidate_pairs)[:top_pairs * 2]:
+    # Evaluate each triple
+    for source, via_disrupted, destination in candidate_triples:
 
         if source not in G or destination not in G:
             continue
 
-        # ---- Original path (may pass through disrupted nodes) ----
-        try:
-            orig_path = nx.shortest_path(G, source, destination, weight="weight")
-            orig_dist = sum(
-                G[orig_path[i]][orig_path[i+1]].get("weight", 1.0)
-                for i in range(len(orig_path) - 1)
-            )
-        except nx.NetworkXNoPath:
-            orig_path  = [source, destination]
-            orig_dist  = float("inf")
+        # ---- Original path = the direct route through the disrupted node ----
+        # Edge weights are distance_m / 1000 (km) set by graph_builder
+        def _edge_km(u, v):
+            return G[u][v].get("weight", G[u][v].get("distance_m", 1000) / 1000.0)
 
-        # Skip pairs where original path doesn't pass through any disrupted node
-        # (no rerouting needed — original and alternate would be identical)
-        if not any(n in all_disrupted for n in orig_path[1:-1]):
-            continue
+        try:
+            orig_dist = _edge_km(source, via_disrupted) + _edge_km(via_disrupted, destination)
+            orig_path = [source, via_disrupted, destination]
+        except (KeyError, TypeError):
+            orig_path = [source, destination]
+            orig_dist = float("inf")
 
         # ---- Alternate path (avoid all disrupted nodes) ----
         alt_status   = "✅ Alternate Found"
