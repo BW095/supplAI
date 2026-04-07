@@ -15,6 +15,7 @@ The resulting graph has:
 
 import networkx as nx
 import pandas as pd
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +27,8 @@ PROJECT_ROOT  = Path(__file__).resolve().parent.parent
 ORDERS_PATH   = PROJECT_ROOT / "datasets" / "order_large.csv"
 DISTANCE_PATH = PROJECT_ROOT / "datasets" / "distance.csv"
 SUPPLY_PATH   = PROJECT_ROOT / "data" / "supply_chain.csv"
+TARIFFS_PATH  = PROJECT_ROOT / "data" / "wits_tariffs.csv"
+OFAC_PATH     = PROJECT_ROOT / "data" / "ofac_sanctions.json"
 
 
 def load_supply_metadata(supply_path: Path = SUPPLY_PATH) -> pd.DataFrame:
@@ -36,6 +39,24 @@ def load_supply_metadata(supply_path: Path = SUPPLY_PATH) -> pd.DataFrame:
     df = pd.read_csv(supply_path)
     df.set_index("city_id", inplace=True)
     return df
+
+
+def load_tariffs_data(tariffs_path: Path = TARIFFS_PATH) -> dict:
+    """
+    Load pairwise tariff data.
+    Returns a map {(Source_Country, Destination_Country): Tariff_Rate_Pct}.
+    """
+    if not tariffs_path.exists():
+        return {}
+    df = pd.read_csv(tariffs_path)
+    return df.set_index(["Source_Country", "Destination_Country"])["Tariff_Rate_Pct"].to_dict()
+
+def load_ofac_data(ofac_path: Path = OFAC_PATH) -> dict:
+    """Load the OFAC blocked lists. Returns a dict mapping to the json array."""
+    if not ofac_path.exists():
+        return {"sanctioned_countries": [], "sanctioned_cities": []}
+    with open(ofac_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_distance_data(distance_path: Path = DISTANCE_PATH) -> pd.DataFrame:
@@ -90,6 +111,8 @@ def build_graph(
     orders_df   = load_orders_data(orders_path)
     distance_df = load_distance_data(distance_path)
     supply_meta = load_supply_metadata(supply_path)
+    tariffs_data = load_tariffs_data()
+    ofac_data    = load_ofac_data()
 
     # ------------------------------------------------------------------
     # 2. Build edge list from distance backbone
@@ -126,16 +149,30 @@ def build_graph(
 
     # Add edges
     for _, row in edge_df.iterrows():
+        src_node = row["source"]
+        dst_node = row["destination"]
+        
+        # Get countries to lookup tariffs
+        src_country = supply_meta.loc[src_node, "country"] if src_node in supply_meta.index else "Unknown"
+        dst_country = supply_meta.loc[dst_node, "country"] if dst_node in supply_meta.index else "Unknown"
+        
+        tariff_rate = tariffs_data.get((src_country, dst_country), 0.0)
+        
+        distance_km = float(row["distance_m"]) / 1000.0
+        # Multiplier: makes tariffs slightly more painful to force circumvention
+        TARIFF_MULTIPLIER = 1.5 
+        effective_weight = distance_km * (1.0 + (tariff_rate / 100.0) * TARIFF_MULTIPLIER)
+
         G.add_edge(
-            row["source"],
-            row["destination"],
+            src_node,
+            dst_node,
             distance_m    = float(row["distance_m"]),
             avg_weight_kg = float(row["avg_weight_kg"]),
             total_orders  = int(row["total_orders"]),
             danger_type   = str(row["danger_type"]),
             material      = str(row["material"]),
-            # Normalised weight for Dijkstra (distance in km)
-            weight        = float(row["distance_m"]) / 1000.0,
+            tariff_rate   = tariff_rate,
+            weight        = effective_weight,
         )
 
     # ------------------------------------------------------------------
@@ -156,9 +193,14 @@ def build_graph(
                 "lat":              0.0,
                 "lon":              0.0,
             }
-        # Merge each attribute directly onto the node
         for key, val in meta.items():
             G.nodes[node][key] = val
+        
+        # Check OFAC
+        G.nodes[node]["ofac_sanctioned"] = (
+            meta.get("country") in ofac_data.get("sanctioned_countries", [])
+            or meta.get("city_name") in ofac_data.get("sanctioned_cities", [])
+        )
 
     return G
 

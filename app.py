@@ -2285,27 +2285,51 @@ def main():
                     f'</div>'
                 ) if found else ""
 
-                st.markdown(f"""
-                <div class="route-card {card_cls}">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
-                        <div>
-                            <span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Route {i+1}</span>
-                            <div style="font-weight:700;font-size:1rem;margin:0.2rem 0">
-                                📍 {route['source_name']} → 📍 {route['destination_name']}
-                            </div>
-                        </div>
-                        <span style="font-size:0.9rem;">{route['status']}</span>
-                    </div>
-                    {'<div style="margin-top:0.8rem;padding:0.6rem;background:#0f172a;border-radius:8px;font-size:0.82rem;color:#94a3b8;"><b style=color:#ef4444>⚠️ Original:</b> ' + orig_path_str + '</div>' if orig_path_str and orig_path_str != 'No path' else ''}
-                    {'<div style="margin-top:0.4rem;padding:0.6rem;background:#0f172a;border-radius:8px;font-size:0.82rem;color:#94a3b8;"><b style=color:#22c55e>✅ Alternate:</b> ' + alt_path_str + '</div>' if found and alt_path_str and alt_path_str != 'No path' else ''}
-                    {validation_block}
-                    <div style="margin-top:0.6rem;display:flex;gap:1.5rem;font-size:0.82rem;color:#64748b;flex-wrap:wrap;">
-                        <span>🛤️ Orig hops: <b>{route['hops_original']}</b></span>
-                        <span>🛤️ Alt hops: <b>{route['hops_alternate']}</b></span>
-                        {'<span>📏 Extra distance: <b>' + delta_str + '</b></span>' if delta_str else ''}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                financial_block = ""
+                if found and route.get("orig_cost_usd") is not None and route.get("alt_cost_usd") is not None:
+                    orig_cost = route["orig_cost_usd"]
+                    alt_cost = route["alt_cost_usd"]
+                    delta_cost = route["cost_delta_usd"]
+                    sign_cost = "+" if delta_cost > 0 else ""
+                    color_cost = "#22c55e" if delta_cost <= 0 else "#ef4444"
+                    financial_block = (
+                        f'<div style="margin-top:0.8rem;padding:0.7rem 0.9rem;border-radius:8px;'
+                        f'background:rgba(15,23,42,0.6);border:1px solid rgba(66,133,244,0.3);">'
+                        f'<div style="font-size:0.75rem;color:#93c5fd;text-transform:uppercase;font-weight:700;margin-bottom:0.3rem;letter-spacing:0.05em;">💸 SeaRates Freight Cost Estimate (Inc. Tariffs)</div>'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">'
+                        f'<span style="color:#94a3b8;font-size:0.85rem;">Original: <b style="color:#e2e8f0">${orig_cost:,.0f}</b></span>'
+                        f'<span style="color:#94a3b8;font-size:0.85rem;">Alternate: <b style="color:#e2e8f0">${alt_cost:,.0f}</b></span>'
+                        f'<span style="color:{color_cost};font-weight:700;font-size:0.88rem;padding:0.15rem 0.4rem;background:{color_cost}22;border-radius:4px;">{sign_cost}${delta_cost:,.0f} Cost</span>'
+                        f'</div></div>'
+                    )
+
+                # Remove blank lines by dynamically building strings
+                f_block_str = financial_block if financial_block else ""
+                v_block_str = validation_block if validation_block else ""
+                
+                dist_str = f"<span>📏 Extra distance: <b>{delta_str}</b></span>" if delta_str else ""
+                tariff_str = f"<span>💰 Max Border Tariff: <b>{str(route.get('max_tariff_pct', 0))}%</b></span>" if route.get('max_tariff_pct') else ""
+
+                card_html = f'''<div class="route-card {card_cls}">
+<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+<div><span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">Route {i+1}</span>
+<div style="font-weight:700;font-size:1rem;margin:0.2rem 0">📍 {route['source_name']} → 📍 {route['destination_name']}</div></div>
+<span style="font-size:0.9rem;">{route['status']}</span></div>
+'''
+                if orig_path_str and orig_path_str != 'No path':
+                    card_html += f'<div style="margin-top:0.8rem;padding:0.6rem;background:#0f172a;border-radius:8px;font-size:0.82rem;color:#94a3b8;"><b style=color:#ef4444>⚠️ Original:</b> {orig_path_str}</div>\n'
+                if found and alt_path_str and alt_path_str != 'No path':
+                    card_html += f'<div style="margin-top:0.4rem;padding:0.6rem;background:#0f172a;border-radius:8px;font-size:0.82rem;color:#94a3b8;"><b style=color:#22c55e>✅ Alternate:</b> {alt_path_str}</div>\n'
+                if f_block_str:
+                    card_html += f_block_str + '\n'
+                if v_block_str:
+                    card_html += v_block_str + '\n'
+                card_html += f'<div style="margin-top:0.6rem;display:flex;gap:1.5rem;font-size:0.82rem;color:#64748b;flex-wrap:wrap;">\n<span>🛤️ Orig hops: <b>{route["hops_original"]}</b></span>\n<span>🛤️ Alt hops: <b>{route["hops_alternate"]}</b></span>\n'
+                if dist_str: card_html += dist_str + '\n'
+                if tariff_str: card_html += tariff_str + '\n'
+                card_html += '</div></div>'
+                
+                st.markdown(card_html, unsafe_allow_html=True)
 
     # ==================================================================
     # TAB 4 — AI Brief

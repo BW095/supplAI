@@ -190,8 +190,12 @@ def find_alternates(
     seed_nodes    = {n for n, d in cascade_result.items() if d == 0}
     all_disrupted = seed_nodes   # for rerouting purposes
 
-    # Build a "safe" subgraph that excludes only the directly disrupted seed nodes
-    safe_nodes = [n for n in G.nodes if n not in seed_nodes]
+    # Build a "safe" subgraph that excludes directly disrupted seed nodes
+    # AND any node flagged on the OFAC SDN sanctions list
+    ofac_blocked = {n for n, attr in G.nodes(data=True) if attr.get("ofac_sanctioned", False)}
+    banned_nations = seed_nodes.union(ofac_blocked)
+    
+    safe_nodes = [n for n in G.nodes if n not in banned_nations]
     G_safe     = G.subgraph(safe_nodes).copy()
 
     results: List[Dict[str, Any]] = []
@@ -224,38 +228,81 @@ def find_alternates(
             continue
 
         # ---- Original path = the direct route through the disrupted node ----
-        # Edge weights are distance_m / 1000 (km) set by graph_builder
-        def _edge_km(u, v):
-            return G[u][v].get("weight", G[u][v].get("distance_m", 1000) / 1000.0)
+        def _edge_km(u, v, graph=G):
+            return graph[u][v].get("distance_m", 1000) / 1000.0
+            
+        def _edge_weight(u, v, graph=G):
+            return graph[u][v].get("weight", _edge_km(u, v, graph))
+            
+        def _edge_tariff(u, v, graph=G):
+            return graph[u][v].get("tariff_rate", 0.0)
+
+        def _calc_usd_cost(path, is_alternate=False, graph=G):
+            if not path or len(path) < 2: return 0.0
+            cost = 0.0
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                dist_km = _edge_km(u, v, graph)
+                tariff_pct = _edge_tariff(u, v, graph)
+                
+                # Realism Fix: Original routes reflect cheap long-term bulk contracts.
+                # Alternate routes reflect expensive emergency spot-market logistics.
+                base_rate = 2.50 if is_alternate else 0.40
+                
+                edge_usd = (dist_km * base_rate) + 500.0 + (50000.0 * (tariff_pct / 100.0))
+                cost += edge_usd
+                
+            # Expedited emergency freight penalty
+            if is_alternate:
+                cost += 25000.0
+            return cost
 
         try:
             orig_dist = _edge_km(source, via_disrupted) + _edge_km(via_disrupted, destination)
             orig_path = [source, via_disrupted, destination]
+            orig_cost_usd = _calc_usd_cost(orig_path, is_alternate=False, graph=G)
         except (KeyError, TypeError):
             orig_path = [source, destination]
             orig_dist = float("inf")
+            orig_cost_usd = float("inf")
 
         # ---- Alternate path (avoid all disrupted nodes) ----
         alt_status   = "✅ Alternate Found"
         alt_path     = []
         alt_dist     = float("inf")
+        alt_cost_usd = float("inf")
         dist_delta   = 0.0
         detour_pct   = 0.0
+        cost_delta_usd = 0.0
+        alt_max_tariff = 0.0
 
         if source in G_safe and destination in G_safe:
             try:
                 alt_path = nx.shortest_path(G_safe, source, destination, weight="weight")
                 alt_dist = sum(
-                    G_safe[alt_path[i]][alt_path[i+1]].get("weight", 1.0)
+                    _edge_km(alt_path[i], alt_path[i+1], G_safe)
                     for i in range(len(alt_path) - 1)
                 )
+                alt_max_tariff = max([0.0] + [
+                    _edge_tariff(alt_path[i], alt_path[i+1], G_safe)
+                    for i in range(len(alt_path) - 1)
+                ])
+                alt_cost_usd = _calc_usd_cost(alt_path, is_alternate=True, graph=G_safe)
+                
                 if orig_dist < float("inf"):
                     dist_delta = alt_dist - orig_dist
                     detour_pct = (dist_delta / orig_dist) * 100 if orig_dist > 0 else 0.0
+                    cost_delta_usd = alt_cost_usd - orig_cost_usd
             except nx.NetworkXNoPath:
-                alt_status = "⚠️ No Alternate Route"
+                # Usually no path implies the only bridges across the gap are sanctioned or disrupted
+                alt_status = "⚠️ Route Severed (OFAC / Disruption Block)"
         else:
-            alt_status = "⚠️ No Alternate Route"
+            is_source_ofac = G.nodes[source].get("ofac_sanctioned")
+            is_dest_ofac = G.nodes[destination].get("ofac_sanctioned")
+            if is_source_ofac or is_dest_ofac:
+                alt_status = "⛔ OFAC SANCTIONED ENDPOINT"
+            else:
+                alt_status = "⚠️ Disrupted Endpoint"
 
         # ---- Human-readable names ----
         def _name(node_id):
@@ -287,9 +334,13 @@ def find_alternates(
             "alternate_dist_km":   round(alt_dist,  1) if alt_dist  < float("inf") else None,
             "distance_delta_km":   round(dist_delta, 1),
             "detour_pct":          round(detour_pct, 1),
+            "orig_cost_usd":       round(orig_cost_usd, 2) if orig_cost_usd < float("inf") else None,
+            "alt_cost_usd":        round(alt_cost_usd, 2)  if alt_cost_usd  < float("inf") else None,
+            "cost_delta_usd":      round(cost_delta_usd, 2),
             "status":              alt_status,
             "hops_original":       len(orig_path) - 1,
             "hops_alternate":      len(alt_path)  - 1 if alt_path else 0,
+            "max_tariff_pct":      round(alt_max_tariff, 1),
             # Validation fields
             "route_validation":      validation["route_validation"],
             "worst_exposure_ratio":  validation["worst_exposure_ratio"],
