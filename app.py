@@ -37,6 +37,11 @@ from reroute          import find_alternates, format_path
 from llm_brief        import generate_brief
 from shap_explain     import compute_shap, shap_bar_figure, shap_waterfall_figure, shap_to_text, FEATURE_DESCRIPTIONS, FEATURE_LABELS
 from anomaly_detector import load_or_train_anomaly, score_anomalies, anomaly_bar_figure
+from material_flow    import (
+    get_edge_material, get_node_material_label,
+    get_disrupted_materials, summarise_materials_at_risk,
+)
+from supply_chain_agent import run_agent
 
 # ---------------------------------------------------------------------------
 # Page config — must be first Streamlit call
@@ -374,14 +379,20 @@ def _load_anomaly_model():
 # ---------------------------------------------------------------------------
 # Graph visualisation with Plotly
 # ---------------------------------------------------------------------------
+TIER_COLORS = {1: "#ef4444", 2: "#f97316", 3: "#eab308", 4: "#22c55e", 5: "#3b82f6"}
+TIER_LABELS = {1: "Tier-1 Direct Supplier", 2: "Tier-2 Supplier", 3: "Tier-3 Upstream",
+               4: "Tier-4 Deep Upstream", 5: "Tier-5 Raw Source"}
+
+
 def build_plotly_graph(
     G:              nx.DiGraph,
     cascade_result: dict,
     risk_df:        pd.DataFrame,
     supply_df:      pd.DataFrame,
     seed_nodes:     list,
+    color_by:       str = "risk",   # "risk" | "tier"
 ) -> go.Figure:
-    """Build an interactive Plotly geo-scatter map coloured by risk level."""
+    """Build an interactive Plotly geo-scatter map coloured by risk level or supply-chain tier."""
 
     # Build node risk lookup
     risk_lookup = {}
@@ -394,6 +405,12 @@ def build_plotly_graph(
 
     # Colour + size helpers
     def node_colour(node):
+        if color_by == "tier":
+            if node not in cascade_nodes:
+                return "#1e293b"
+            tier = int(G.nodes[node].get("tier", 3))
+            return TIER_COLORS.get(tier, "#334155")
+        # default: risk score
         if node in seed_set:   return "#ef4444"
         rs = risk_lookup.get(node, 0)
         if rs >= 0.65:         return "#f97316"
@@ -413,6 +430,9 @@ def build_plotly_graph(
     # Arc lines for edges that are within the cascade                     #
     # ------------------------------------------------------------------ #
     arc_lats, arc_lons = [], []
+    # Midpoint markers — one per disrupted edge, carries material hover text
+    mid_lats, mid_lons, mid_texts = [], [], []
+
     for src, dst in G.edges():
         src_lat = G.nodes[src].get("lat", 0)
         src_lon = G.nodes[src].get("lon", 0)
@@ -422,12 +442,45 @@ def build_plotly_graph(
             arc_lats += [src_lat, dst_lat, None]
             arc_lons += [src_lon, dst_lon, None]
 
+            # Midpoint for the hover label
+            mid_lat = (src_lat + dst_lat) / 2
+            mid_lon = (src_lon + dst_lon) / 2
+            material = get_edge_material(G, src, dst)
+            src_name = G.nodes[src].get("city_name", src)
+            dst_name = G.nodes[dst].get("city_name", dst)
+            hover_txt = (
+                f"<b>📦 {material}</b><br>"
+                f"{src_name} → {dst_name}<br>"
+                f"<span style='color:#94a3b8;font-size:0.85em;'>"
+                f"{G.nodes[src].get('country','?')} → {G.nodes[dst].get('country','?')}"
+                f"</span>"
+            )
+            mid_lats.append(mid_lat)
+            mid_lons.append(mid_lon)
+            mid_texts.append(hover_txt)
+
     arc_trace = go.Scattergeo(
         lat=arc_lats, lon=arc_lons,
         mode="lines",
         line=dict(width=0.8, color="rgba(239,68,68,0.35)"),
         hoverinfo="none",
         name="Disrupted Routes",
+        showlegend=False,
+    )
+
+    # Invisible midpoint markers — visible only on hover to show material
+    material_trace = go.Scattergeo(
+        lat=mid_lats, lon=mid_lons,
+        mode="markers",
+        hoverinfo="text",
+        text=mid_texts,
+        marker=dict(
+            size=6,
+            color="rgba(251,191,36,0.7)",
+            symbol="diamond",
+            line=dict(width=0.5, color="rgba(255,255,255,0.3)"),
+        ),
+        name="Material Flows",
         showlegend=False,
     )
 
@@ -445,11 +498,16 @@ def build_plotly_graph(
         nd    = G.nodes[node]
         rs    = risk_lookup.get(node, 0)
         depth = cascade_result.get(node, -1)
-        status_str = f"⚡ Cascade depth: {depth}" if depth >= 0 else "✅ Unaffected"
+        tier  = int(nd.get("tier", 3))
+        status_str   = f"⚡ Cascade depth: {depth}" if depth >= 0 else "✅ Unaffected"
+        material_lbl = get_node_material_label(G, node)
+        tier_lbl     = TIER_LABELS.get(tier, f"Tier-{tier}")
         hover = (
             f"<b>{nd.get('city_name', node)}</b><br>"
             f"🌍 {nd.get('country', '?')} · {nd.get('region', '?')}<br>"
-            f"📦 {nd.get('product_category', '?')} | Tier {nd.get('tier', '?')}<br>"
+            f"🏭 Produces: <b>{material_lbl}</b><br>"
+            f"📦 Category: {nd.get('product_category', '?')}<br>"
+            f"🔗 <b>{tier_lbl}</b><br>"
             f"{status_str}<br>"
             f"🎯 Risk Score: <b>{rs:.3f}</b>"
         )
@@ -474,7 +532,7 @@ def build_plotly_graph(
         showlegend=False,
     )
 
-    fig = go.Figure(data=[arc_trace, node_trace])
+    fig = go.Figure(data=[arc_trace, material_trace, node_trace])
     fig.update_geos(
         projection_type="natural earth",
         showland=True,       landcolor="#1a2235",
@@ -494,11 +552,237 @@ def build_plotly_graph(
         height=580,
         annotations=[
             dict(x=0.01, y=0.02, xref="paper", yref="paper", showarrow=False,
-                 text="🔴 Disruption Source  🟠 Critical Cascade  🟡 High Risk  🔵 Monitoring  ⚫ Unaffected",
+                 text=(
+                     "🔴 Tier-1 Direct  🟠 Tier-2  🟡 Tier-3  🟢 Tier-4  🔵 Tier-5  ⚫ Unaffected"
+                     if color_by == "tier" else
+                     "🔴 Disruption Source  🟠 Critical Cascade  🟡 High Risk  🔵 Monitoring  ⚫ Unaffected"
+                 ),
                  font=dict(color="#94a3b8", size=11, family="Inter"),
                  bgcolor="rgba(10,14,26,0.7)", borderpad=6, align="left"),
         ],
     )
+    return fig
+
+
+# ---------------------------------------------------------------------------
+# Cascade Animation — Plotly animated figure, one frame per depth level
+# ---------------------------------------------------------------------------
+def build_cascade_animation(
+    G:              nx.DiGraph,
+    cascade_result: dict,
+    risk_df:        pd.DataFrame,
+    seed_nodes:     list,
+) -> go.Figure | None:
+    """
+    Animated Plotly geo-scatter that shows the disruption spreading
+    depth by depth across the supply chain network.
+
+    Frame N shows all nodes at cascade depth ≤ N lit up in their
+    risk colour; nodes not yet reached remain as dim dots.
+    """
+    if not cascade_result:
+        return None
+
+    max_depth = max(cascade_result.values())
+    seed_set  = set(seed_nodes)
+
+    # Risk score lookup for colour grading
+    risk_lookup: dict[str, float] = {}
+    if not risk_df.empty:
+        for _, row in risk_df.iterrows():
+            risk_lookup[row["node"]] = float(row["risk_score"])
+
+    # Depth → hex colour (seed=red → orange → yellow → blue)
+    DEPTH_COLS = ["#ef4444", "#f97316", "#eab308", "#3b82f6", "#22c55e", "#8b5cf6"]
+
+    def _node_col(node: str, shown_depth: int) -> str:
+        if node in seed_set:
+            return "#ef4444"
+        d = cascade_result.get(node, 9999)
+        if d > shown_depth:
+            return "#1e2535"       # not yet reached — near-invisible
+        return DEPTH_COLS[min(d, len(DEPTH_COLS) - 1)]
+
+    def _node_size(node: str, shown_depth: int) -> int:
+        d = cascade_result.get(node, 9999)
+        if d > shown_depth:
+            return 4
+        if node in seed_set:
+            return 17
+        return max(7, 14 - d * 2)
+
+    def _node_opacity(node: str, shown_depth: int) -> float:
+        d = cascade_result.get(node, 9999)
+        return 1.0 if d <= shown_depth else 0.18
+
+    # Pre-collect all node coordinates once
+    all_nodes = [
+        (n, G.nodes[n].get("lat", 0), G.nodes[n].get("lon", 0))
+        for n in G.nodes()
+        if not (G.nodes[n].get("lat", 0) == 0 and G.nodes[n].get("lon", 0) == 0)
+    ]
+
+    def _build_traces(shown_depth: int):
+        # Arc lines for edges where BOTH endpoints are in the visible cascade
+        visible = {n for n, d in cascade_result.items() if d <= shown_depth}
+        arc_lats, arc_lons = [], []
+        for src, dst in G.edges():
+            if src in visible and dst in visible:
+                arc_lats += [G.nodes[src].get("lat", 0), G.nodes[dst].get("lat", 0), None]
+                arc_lons += [G.nodes[src].get("lon", 0), G.nodes[dst].get("lon", 0), None]
+
+        arc_trace = go.Scattergeo(
+            lat=arc_lats, lon=arc_lons,
+            mode="lines",
+            line=dict(width=0.9, color="rgba(239,68,68,0.30)"),
+            hoverinfo="none",
+            showlegend=False,
+        )
+
+        # Nodes
+        lats, lons, texts, cols, sizes, opacities = [], [], [], [], [], []
+        for node, lat, lon in all_nodes:
+            nd  = G.nodes[node]
+            d   = cascade_result.get(node, 9999)
+            col = _node_col(node, shown_depth)
+            sz  = _node_size(node, shown_depth)
+            op  = _node_opacity(node, shown_depth)
+
+            if d <= shown_depth:
+                status = "🔴 Disruption Origin" if d == 0 else f"⚡ Cascade — depth {d}"
+            else:
+                status = "✅ Unaffected"
+
+            hover = (
+                f"<b>{nd.get('city_name', node)}</b><br>"
+                f"🌍 {nd.get('country', '?')} · {nd.get('region', '?')}<br>"
+                f"📦 {nd.get('product_category', '?')} · Tier {nd.get('tier', '?')}<br>"
+                f"{status}"
+            )
+            lats.append(lat); lons.append(lon)
+            texts.append(hover); cols.append(col)
+            sizes.append(sz);   opacities.append(op)
+
+        node_trace = go.Scattergeo(
+            lat=lats, lon=lons,
+            mode="markers",
+            hoverinfo="text",
+            text=texts,
+            marker=dict(
+                color=cols, size=sizes, opacity=opacities,
+                line=dict(width=0.6, color="rgba(255,255,255,0.12)"),
+            ),
+            showlegend=False,
+        )
+        return arc_trace, node_trace
+
+    # Build one Plotly frame per depth level
+    frames = []
+    for depth in range(max_depth + 1):
+        arc_t, node_t = _build_traces(depth)
+        n_affected = sum(1 for d in cascade_result.values() if d <= depth)
+        frames.append(go.Frame(
+            data=[arc_t, node_t],
+            name=str(depth),
+            layout=go.Layout(
+                annotations=[dict(
+                    x=0.5, y=1.04, xref="paper", yref="paper", showarrow=False,
+                    text=(
+                        f"<b style='color:#ef4444;'>Cascade Depth {depth}</b>"
+                        f" — <b style='color:#a5b4fc;'>{n_affected}</b> nodes affected"
+                    ),
+                    font=dict(color="#e2e8f0", size=15, family="Inter"),
+                )]
+            ),
+        ))
+
+    # Initial data = first frame (just seeds)
+    init_arc, init_node = _build_traces(0)
+
+    fig = go.Figure(data=[init_arc, init_node], frames=frames)
+
+    # Geo layout
+    fig.update_geos(
+        projection_type="natural earth",
+        showland=True,       landcolor="#1a2235",
+        showocean=True,      oceancolor="#0a0e1a",
+        showcoastlines=True, coastlinecolor="#2d3f5f",
+        showcountries=True,  countrycolor="#1e3050",
+        showframe=False,
+        bgcolor="#0a0e1a",
+    )
+
+    # Animation controls
+    play_btn = dict(
+        label="▶  Play Cascade",
+        method="animate",
+        args=[None, {
+            "frame":      {"duration": 950, "redraw": True},
+            "fromcurrent": True,
+            "transition": {"duration": 350, "easing": "cubic-in-out"},
+        }],
+    )
+    pause_btn = dict(
+        label="⏸  Pause",
+        method="animate",
+        args=[[None], {
+            "frame":  {"duration": 0, "redraw": False},
+            "mode":   "immediate",
+        }],
+    )
+
+    slider_steps = [
+        dict(
+            args=[[str(d)], {"frame": {"duration": 400, "redraw": True}, "mode": "immediate",
+                             "transition": {"duration": 200}}],
+            label=f"D{d}",
+            method="animate",
+        )
+        for d in range(max_depth + 1)
+    ]
+
+    fig.update_layout(
+        paper_bgcolor="#0a0e1a",
+        margin=dict(l=0, r=0, t=60, b=80),
+        height=560,
+        updatemenus=[dict(
+            type="buttons",
+            showactive=False,
+            x=0.5, y=-0.06,
+            xanchor="center", yanchor="top",
+            bgcolor="#1e293b",
+            bordercolor="#334155",
+            font=dict(color="#e2e8f0", size=13, family="Inter"),
+            buttons=[play_btn, pause_btn],
+            pad={"r": 10, "t": 4},
+        )],
+        sliders=[dict(
+            active=0,
+            steps=slider_steps,
+            x=0.05, len=0.9,
+            y=0.0,
+            xanchor="left", yanchor="top",
+            currentvalue=dict(
+                prefix="Cascade depth: ",
+                visible=True,
+                xanchor="center",
+                font=dict(color="#a5b4fc", size=13, family="Inter"),
+            ),
+            font=dict(color="#94a3b8", size=11),
+            bgcolor="#1e293b",
+            bordercolor="#334155",
+            tickcolor="#334155",
+            transition=dict(duration=300),
+            pad=dict(b=10, t=30),
+        )],
+        annotations=[dict(
+            x=0.5, y=1.04, xref="paper", yref="paper", showarrow=False,
+            text=f"<b style='color:#ef4444;'>Cascade Depth 0</b> — "
+                 f"<b style='color:#a5b4fc;'>{sum(1 for d in cascade_result.values() if d==0)}</b> origin nodes",
+            font=dict(color="#e2e8f0", size=15, family="Inter"),
+        )],
+    )
+
     return fig
 
 
@@ -722,6 +1006,22 @@ def main():
             except Exception:
                 anomaly_df = pd.DataFrame()
 
+        with st.spinner("🤖 Running AI Agent loop …"):
+            try:
+                mat_summary_for_agent = summarise_materials_at_risk(G, cascade_result)
+                agent_result = run_agent(
+                    G                   = G,
+                    cascade_result      = cascade_result,
+                    risk_df             = risk_df,
+                    reroute_suggestions = reroute_suggestions,
+                    material_summary    = mat_summary_for_agent,
+                    anomaly_df          = anomaly_df,
+                    disruption_info     = disruption_info,
+                )
+            except Exception as _agent_err:
+                print(f"  [agent] Error: {_agent_err}")
+                agent_result = None
+
         return {
             "disruption_info":     disruption_info,
             "cascade_result":      cascade_result,
@@ -731,6 +1031,7 @@ def main():
             "brief":               brief,
             "shap_results":        shap_results,
             "anomaly_df":          anomaly_df,
+            "agent_result":        agent_result,
         }
 
     # ---------------------------------------------------------------------------
@@ -765,11 +1066,23 @@ def main():
             if severity_override != "Auto-detect":
                 disruption_info["severity"] = severity_override.lower()
 
+        src_icon  = "🤖" if disruption_info.get("llm_source") == "gemini" else "🔑"
+        src_label = "AI-classified" if disruption_info.get("llm_source") == "gemini" else "Keyword-matched"
         st.info(
-            f"**Event parsed** | 🏙️ {len(disruption_info['affected_nodes'])} seed nodes identified "
+            f"**Event parsed** {src_icon} {src_label} | "
+            f"🏙️ {len(disruption_info['affected_nodes'])} seed nodes identified "
             f"| ⚠️ Severity: **{disruption_info['severity'].upper()}** "
             f"| 📂 Category: **{disruption_info['category'].replace('_', ' ').title()}**"
         )
+        if disruption_info.get("reasoning"):
+            st.markdown(
+                f"<div style='background:#0f172a; border-left:3px solid #6366f1; "
+                f"padding:0.55rem 1rem; border-radius:0 8px 8px 0; margin-top:-0.6rem; "
+                f"color:#94a3b8; font-size:0.86rem;'>"
+                f"🧠 <b style='color:#a5b4fc;'>AI Reasoning:</b> {disruption_info['reasoning']}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
         st.session_state["results"] = _run_pipeline(disruption_info, max_depth)
 
     elif run_analysis and not event_text.strip():
@@ -870,16 +1183,44 @@ def main():
             </div>
             """, unsafe_allow_html=True)
 
+    # ---- Deep-tier hidden risk banner ----
+    if not risk_df.empty:
+        hidden_risk = risk_df[(risk_df["tier"].astype(int) >= 3) & (risk_df["risk_score"] >= 0.40)]
+        if not hidden_risk.empty:
+            tier3_ct = len(hidden_risk[hidden_risk["tier"].astype(int) == 3])
+            tier4_ct = len(hidden_risk[hidden_risk["tier"].astype(int) >= 4])
+            parts    = []
+            if tier3_ct: parts.append(f"<b>{tier3_ct}</b> Tier-3")
+            if tier4_ct: parts.append(f"<b>{tier4_ct}</b> Tier-4")
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);
+                        border:1px solid #7c3aed; border-radius:10px;
+                        padding:0.7rem 1.2rem; margin:0.5rem 0;
+                        display:flex; align-items:center; gap:1rem;">
+                <span style="font-size:1.4rem;">🔍</span>
+                <div>
+                    <div style="color:#c4b5fd; font-weight:700; font-size:0.9rem;">
+                        DEEP-TIER HIDDEN RISK — {" + ".join(parts)} upstream nodes at elevated risk
+                    </div>
+                    <div style="color:#ddd6fe; font-size:0.82rem; margin-top:0.15rem;">
+                        These Tier-3/4 suppliers are feeding into your Tier-1 chain.
+                        See <b>Risk Analysis → Tier Breakdown</b> for details.
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ---- 6 tabs ----
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    # ---- 7 tabs ----
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "🌐 Network Graph",
         "🔥 Risk Analysis",
         "🔁 Rerouting",
         "🤖 AI Brief",
         "🔍 ML Explainability",
         "🚨 Anomaly Detection",
+        "🧠 AI Agent",
     ])
 
     # ==================================================================
@@ -893,11 +1234,55 @@ def main():
             unsafe_allow_html=True,
         )
 
-        fig = build_plotly_graph(
-            G, cascade_result, risk_df, supply_df,
-            seed_nodes=disruption_info["affected_nodes"],
+        # View toggle
+        view_mode = st.radio(
+            "View mode",
+            ["🗺️ Risk Map", "🏭 Tier Structure Map", "🎬 Cascade Animation"],
+            horizontal=True,
+            label_visibility="collapsed",
         )
-        st.plotly_chart(fig, use_container_width=True)
+
+        if view_mode == "🎬 Cascade Animation":
+            st.markdown(
+                "<span style='color:#64748b;font-size:0.85rem;'>"
+                "Press <b style='color:#a5b4fc;'>▶ Play Cascade</b> to watch the disruption spread "
+                "across the supply chain network in real time. Use the depth slider to step manually."
+                "</span>",
+                unsafe_allow_html=True,
+            )
+            anim_fig = build_cascade_animation(
+                G, cascade_result, risk_df,
+                seed_nodes=disruption_info["affected_nodes"],
+            )
+            if anim_fig:
+                st.plotly_chart(anim_fig, use_container_width=True)
+            else:
+                st.info("Not enough cascade data to animate.")
+
+        elif view_mode == "🏭 Tier Structure Map":
+            st.markdown(
+                "<span style='color:#64748b;font-size:0.85rem;'>"
+                "Nodes coloured by their supply-chain tier relative to your company — "
+                "<b style='color:#ef4444;'>Tier-1</b> are your direct suppliers, "
+                "<b style='color:#eab308;'>Tier-3/4</b> are deep upstream. "
+                "Over one-third of real disruptions start at Tier-3/4."
+                "</span>",
+                unsafe_allow_html=True,
+            )
+            fig = build_plotly_graph(
+                G, cascade_result, risk_df, supply_df,
+                seed_nodes=disruption_info["affected_nodes"],
+                color_by="tier",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            fig = build_plotly_graph(
+                G, cascade_result, risk_df, supply_df,
+                seed_nodes=disruption_info["affected_nodes"],
+                color_by="risk",
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         # Depth breakdown
         st.markdown("#### Cascade Depth Breakdown")
@@ -959,6 +1344,106 @@ def main():
 
             st.markdown("<br>", unsafe_allow_html=True)
 
+            # ----------------------------------------------------------
+            # Tier Structure Breakdown
+            # ----------------------------------------------------------
+            st.markdown("#### 🏭 Supply Chain Tier Breakdown")
+            st.markdown(
+                "<span style='color:#64748b;font-size:0.85rem;'>"
+                "How disruption spreads <i>relative to your company</i> — "
+                "Tier-1 = direct suppliers you buy from, Tier-3/4 = deep upstream you may not even monitor."
+                "</span>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            tier_summary = (
+                risk_df.groupby("tier", as_index=False)
+                .agg(
+                    disrupted   =("node", "count"),
+                    avg_risk    =("risk_score", "mean"),
+                    max_risk    =("risk_score", "max"),
+                    critical_ct =("risk_score", lambda x: int((x >= 0.65).sum())),
+                )
+                .sort_values("tier")
+            )
+
+            tier_cols = st.columns(min(len(tier_summary), 4))
+            for i, (_, tr) in enumerate(tier_summary.iterrows()):
+                t      = int(tr["tier"])
+                col_h  = TIER_COLORS.get(t, "#94a3b8")
+                lbl    = TIER_LABELS.get(t, f"Tier-{t}")
+                badge  = "🔴 Critical" if tr["max_risk"] >= 0.65 else "🟠 High" if tr["max_risk"] >= 0.40 else "🟡 Medium"
+                with tier_cols[i % 4]:
+                    st.markdown(f"""
+                    <div class="risk-card" style="border-top:3px solid {col_h}; text-align:center; padding:1rem;">
+                        <div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;
+                                    letter-spacing:0.08em;margin-bottom:0.3rem;">{lbl}</div>
+                        <div style="font-size:2rem;font-weight:800;color:{col_h};">{int(tr['disrupted'])}</div>
+                        <div style="color:#94a3b8;font-size:0.78rem;margin-bottom:0.4rem;">nodes disrupted</div>
+                        <div style="font-size:0.82rem;color:#e2e8f0;">
+                            Avg risk <b>{tr['avg_risk']:.3f}</b>
+                        </div>
+                        <div style="margin-top:0.4rem;font-size:0.78rem;">{badge}</div>
+                        {f'<div style="margin-top:0.4rem;color:#ef4444;font-size:0.75rem;font-weight:600;">{int(tr["critical_ct"])} critical node(s)</div>' if tr["critical_ct"] > 0 else ''}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            # Deep-tier alert
+            deep_tier_df = risk_df[risk_df["tier"].astype(int) >= 3]
+            deep_critical = deep_tier_df[deep_tier_df["risk_score"] >= 0.40]
+            if not deep_critical.empty:
+                def _tier_lbl(t):
+                    return TIER_LABELS.get(int(t), f"Tier-{int(t)}")
+                sample_nodes = ", ".join(
+                    f"<b>{r['city_name']}</b> ({r['country']}, {_tier_lbl(r['tier'])}, score {r['risk_score']:.2f})"
+                    for _, r in deep_critical.head(3).iterrows()
+                )
+                st.markdown(f"""
+                <div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);
+                            border:1px solid #7c3aed; border-radius:10px;
+                            padding:0.9rem 1.2rem; margin:0.8rem 0;">
+                    <div style="color:#c4b5fd; font-weight:700; font-size:0.95rem; margin-bottom:0.4rem;">
+                        🔍 Deep-Tier Risk Detected — {len(deep_critical)} Tier-3/4 nodes at elevated risk
+                    </div>
+                    <div style="color:#ddd6fe; font-size:0.85rem; line-height:1.6;">
+                        These upstream suppliers are often invisible to monitoring systems yet feed directly
+                        into your Tier-1 chain. Over one-third of real disruptions originate here.<br>
+                        <span style="color:#a78bfa;">{sample_nodes}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Tier risk bar chart
+            tier_fig = go.Figure()
+            for _, tr in tier_summary.iterrows():
+                t = int(tr["tier"])
+                tier_fig.add_trace(go.Bar(
+                    x=[f"Tier-{t}"],
+                    y=[round(tr["avg_risk"], 4)],
+                    name=TIER_LABELS.get(t, f"Tier-{t}"),
+                    marker_color=TIER_COLORS.get(t, "#94a3b8"),
+                    text=[f"{tr['avg_risk']:.3f}"],
+                    textposition="outside",
+                    hovertemplate=f"<b>{TIER_LABELS.get(t,'Tier-'+str(t))}</b><br>"
+                                  f"Avg risk: {tr['avg_risk']:.3f}<br>"
+                                  f"Disrupted nodes: {int(tr['disrupted'])}<br>"
+                                  f"<extra></extra>",
+                ))
+            tier_fig.update_layout(
+                paper_bgcolor="#0a0e1a", plot_bgcolor="#0a0e1a",
+                xaxis=dict(title="Supply Chain Tier", color="#94a3b8", gridcolor="#1e293b"),
+                yaxis=dict(title="Average Risk Score", color="#94a3b8", gridcolor="#1e293b",
+                           range=[0, 1]),
+                font=dict(color="#e2e8f0", family="Inter"),
+                height=250, margin=dict(t=15, b=30, l=20, r=20),
+                showlegend=False,
+                bargap=0.3,
+            )
+            st.plotly_chart(tier_fig, use_container_width=True)
+
+            st.markdown("---")
+
             # Full risk table
             tbl_col, export_col = st.columns([5, 1])
             with tbl_col:
@@ -992,6 +1477,89 @@ def main():
                 use_container_width=True,
                 height=400,
             )
+
+            # ----------------------------------------------------------
+            # Materials at Risk
+            # ----------------------------------------------------------
+            st.markdown("#### 📦 Materials at Risk")
+            mat_summary = summarise_materials_at_risk(G, cascade_result)
+            if mat_summary.empty:
+                st.info("No material flow data available for this disruption.")
+            else:
+                # KPI row
+                total_routes   = int(mat_summary["Disrupted Routes"].sum())
+                unique_mats    = len(mat_summary)
+                total_countries= int(mat_summary["Countries Affected"].max())
+                mk1, mk2, mk3 = st.columns(3)
+                mk1.metric("📦 Material Types Disrupted", unique_mats)
+                mk2.metric("🔗 Disrupted Supply Routes",  total_routes)
+                mk3.metric("🌍 Max Countries Affected",   total_countries)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # Bar chart — routes disrupted per material
+                mat_fig = go.Figure(go.Bar(
+                    x=mat_summary["Material Flow"],
+                    y=mat_summary["Disrupted Routes"],
+                    marker=dict(
+                        color=mat_summary["Disrupted Routes"],
+                        colorscale=[[0,"#3b82f6"],[0.5,"#f97316"],[1,"#ef4444"]],
+                        showscale=False,
+                    ),
+                    text=mat_summary["Disrupted Routes"],
+                    textposition="outside",
+                    hovertemplate=(
+                        "<b>%{x}</b><br>"
+                        "Disrupted routes: %{y}<br>"
+                        "<extra></extra>"
+                    ),
+                ))
+                mat_fig.update_layout(
+                    paper_bgcolor="#0a0e1a", plot_bgcolor="#0a0e1a",
+                    xaxis=dict(
+                        title="Material Flow Type", color="#94a3b8",
+                        gridcolor="#1e293b", tickangle=-30,
+                    ),
+                    yaxis=dict(title="Disrupted Routes", color="#94a3b8", gridcolor="#1e293b"),
+                    font=dict(color="#e2e8f0", family="Inter"),
+                    height=300, margin=dict(t=15, b=100, l=20, r=20),
+                )
+                st.plotly_chart(mat_fig, use_container_width=True)
+
+                # Detail table — expand to see specific items and example routes
+                with st.expander("🔍 View full material flow breakdown"):
+                    st.dataframe(
+                        mat_summary,
+                        hide_index=True,
+                        use_container_width=True,
+                        column_config={
+                            "Material Flow":      st.column_config.TextColumn("Material Type", width="medium"),
+                            "Specific Items":     st.column_config.TextColumn("Specific Items at Risk", width="large"),
+                            "Disrupted Routes":   st.column_config.NumberColumn("Routes Disrupted", width="small"),
+                            "Countries Affected": st.column_config.NumberColumn("Countries", width="small"),
+                            "Example Route":      st.column_config.TextColumn("Example Route", width="large"),
+                        },
+                    )
+
+                    # Per-edge detail table
+                    st.markdown("##### All disrupted material flows (edge level)")
+                    edge_df = get_disrupted_materials(G, cascade_result)
+                    if not edge_df.empty:
+                        display_edge = edge_df[[
+                            "from_city","from_country","material",
+                            "to_city","to_country","from_tier","to_tier"
+                        ]].rename(columns={
+                            "from_city":    "From City",
+                            "from_country": "From Country",
+                            "material":     "Material",
+                            "to_city":      "To City",
+                            "to_country":   "To Country",
+                            "from_tier":    "From Tier",
+                            "to_tier":      "To Tier",
+                        })
+                        st.dataframe(display_edge, hide_index=True, use_container_width=True, height=300)
+
+            st.markdown("<br>", unsafe_allow_html=True)
 
             # Risk score distribution
             st.markdown("#### Risk Score Distribution")
@@ -1032,11 +1600,45 @@ def main():
         else:
             n_found   = len([r for r in reroute_suggestions if r["status"] == "✅ Alternate Found"])
             n_blocked = len(reroute_suggestions) - n_found
+            n_clean   = len([r for r in reroute_suggestions if r.get("route_validation") == "✅ Clean"])
+            n_hidden  = len([r for r in reroute_suggestions if r.get("route_validation") == "⛔ Hidden Dependency"])
+            n_partial = len([r for r in reroute_suggestions if r.get("route_validation") == "⚠️ Partial Exposure"])
 
             col_r1, col_r2, col_r3 = st.columns(3)
             col_r1.metric("🔄 Total Suggestions", len(reroute_suggestions))
             col_r2.metric("✅ Alternates Found",  n_found)
             col_r3.metric("⚠️ Blocked Routes",    n_blocked)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Upstream validation summary banner
+            if n_found > 0:
+                if n_hidden > 0:
+                    st.markdown(
+                        f'<div style="border-left:4px solid #ef4444;background:#1e0a0a;padding:0.8rem 1.2rem;border-radius:8px;margin-bottom:1rem;">'
+                        f'<b style="color:#ef4444">⛔ Hidden Dependency Alert</b> &nbsp;·&nbsp; '
+                        f'<span style="color:#fca5a5">{n_hidden} alternate route(s) route through suppliers whose upstream chains '
+                        f'are also exposed to the disrupted region. These routes may fail under the same event.</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif n_partial > 0:
+                    st.markdown(
+                        f'<div style="border-left:4px solid #eab308;background:#1a1500;padding:0.8rem 1.2rem;border-radius:8px;margin-bottom:1rem;">'
+                        f'<b style="color:#eab308">⚠️ Partial Exposure Detected</b> &nbsp;·&nbsp; '
+                        f'<span style="color:#fde68a">{n_partial} route(s) have intermediate nodes with partial upstream '
+                        f'exposure. Monitor closely.</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        f'<div style="border-left:4px solid #22c55e;background:#0a1a0a;padding:0.8rem 1.2rem;border-radius:8px;margin-bottom:1rem;">'
+                        f'<b style="color:#22c55e">✅ All {n_clean} alternate route(s) validated clean</b> &nbsp;·&nbsp; '
+                        f'<span style="color:#86efac">No hidden upstream dependencies on the disrupted region detected.</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1054,6 +1656,55 @@ def main():
                     sign  = "+" if delta >= 0 else ""
                     delta_str = f"<span style='color:#eab308'>{sign}{delta:,.0f} km ({sign}{detour:.1f}%)</span>"
 
+                # Validation badge styling
+                vstat = route.get("route_validation", "N/A")
+                if vstat == "✅ Clean":
+                    vbadge_color = "#22c55e"
+                    vbadge_bg    = "rgba(34,197,94,0.12)"
+                elif vstat == "⚠️ Partial Exposure":
+                    vbadge_color = "#eab308"
+                    vbadge_bg    = "rgba(234,179,8,0.12)"
+                elif vstat == "⛔ Hidden Dependency":
+                    vbadge_color = "#ef4444"
+                    vbadge_bg    = "rgba(239,68,68,0.12)"
+                else:
+                    vbadge_color = "#64748b"
+                    vbadge_bg    = "rgba(100,116,139,0.12)"
+
+                exposure_pct  = int(route.get("worst_exposure_ratio", 0) * 100)
+                vnote         = route.get("validation_note", "")
+                exposed_ints  = route.get("exposed_intermediates", [])
+
+                # Build exposed-node detail HTML
+                exposed_detail_html = ""
+                if exposed_ints:
+                    items_html = "".join(
+                        f'<div style="padding:0.4rem 0.6rem;background:#0f172a;border-radius:6px;margin-top:0.3rem;font-size:0.78rem;color:#cbd5e1;">'
+                        f'<b style="color:{vbadge_color}">{e["city_name"]}</b> — '
+                        f'{int(e["exposure_ratio"]*100)}% upstream exposed'
+                        f'{"  <span style=color:#94a3b8>(" + ", ".join(e["exposed_upstream"][:3]) + ")</span>" if e["exposed_upstream"] else ""}'
+                        f'</div>'
+                        for e in exposed_ints
+                    )
+                    exposed_detail_html = (
+                        f'<div style="margin-top:0.5rem;">'
+                        f'<span style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Exposed Intermediates</span>'
+                        f'{items_html}'
+                        f'</div>'
+                    )
+
+                validation_block = (
+                    f'<div style="margin-top:0.8rem;padding:0.7rem 0.9rem;border-radius:8px;'
+                    f'background:{vbadge_bg};border:1px solid {vbadge_color}33;">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">'
+                    f'<span style="font-weight:700;color:{vbadge_color};font-size:0.88rem;">🔍 Upstream Validation: {vstat}</span>'
+                    f'{"<span style=font-size:0.78rem;color:" + vbadge_color + ";>" + str(exposure_pct) + "% upstream exposed</span>" if found else ""}'
+                    f'</div>'
+                    f'<div style="font-size:0.8rem;color:#94a3b8;margin-top:0.3rem;">{vnote}</div>'
+                    f'{exposed_detail_html}'
+                    f'</div>'
+                ) if found else ""
+
                 st.markdown(f"""
                 <div class="route-card {card_cls}">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
@@ -1067,6 +1718,7 @@ def main():
                     </div>
                     {'<div style="margin-top:0.8rem;padding:0.6rem;background:#0f172a;border-radius:8px;font-size:0.82rem;color:#94a3b8;"><b style=color:#ef4444>⚠️ Original:</b> ' + orig_path_str + '</div>' if orig_path_str and orig_path_str != 'No path' else ''}
                     {'<div style="margin-top:0.4rem;padding:0.6rem;background:#0f172a;border-radius:8px;font-size:0.82rem;color:#94a3b8;"><b style=color:#22c55e>✅ Alternate:</b> ' + alt_path_str + '</div>' if found and alt_path_str and alt_path_str != 'No path' else ''}
+                    {validation_block}
                     <div style="margin-top:0.6rem;display:flex;gap:1.5rem;font-size:0.82rem;color:#64748b;flex-wrap:wrap;">
                         <span>🛤️ Orig hops: <b>{route['hops_original']}</b></span>
                         <span>🛤️ Alt hops: <b>{route['hops_alternate']}</b></span>
@@ -1080,6 +1732,127 @@ def main():
     # ==================================================================
     with tab4:
         st.markdown('<div class="section-header">AI Operations Brief</div>', unsafe_allow_html=True)
+
+        # ----------------------------------------------------------
+        # CSCO Supplier Decision Table
+        # ----------------------------------------------------------
+        st.markdown("#### 📊 Supplier Decision Table")
+        st.markdown(
+            "<span style='color:#64748b;font-size:0.85rem;'>"
+            "Structured action decision for every at-risk supplier — scan in 10 seconds, know exactly what to do."
+            "</span>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        if not risk_df.empty:
+            def _csco_row(r):
+                score = r["risk_score"]
+                tier  = int(r.get("tier", 3))
+                depth = int(r.get("cascade_depth", 0))
+                prod  = r.get("product_category", "General")
+                cent  = float(r.get("centrality_score", 0))
+                out_d = cascade_result.get(r["node"], 0)
+
+                if score >= 0.65:
+                    decision = "REPLACE"
+                    action   = "Find 2+ alternatives within 72 hrs. Initiate emergency procurement."
+                    dec_col  = "#ef4444"
+                elif score >= 0.40:
+                    decision = "MONITOR"
+                    action   = "Check weekly. Pre-qualify backup supplier. Prepare contingency."
+                    dec_col  = "#f97316"
+                else:
+                    decision = "STANDARD"
+                    action   = "Standard monitoring protocol. No immediate action required."
+                    dec_col  = "#22c55e"
+
+                # Build reason sentence
+                reason_parts = []
+                if depth == 0:
+                    reason_parts.append("Direct disruption origin")
+                else:
+                    reason_parts.append(f"Cascade depth {depth} from origin")
+                if tier <= 2:
+                    reason_parts.append(f"Tier-{tier} critical hub")
+                if cent >= 0.5:
+                    reason_parts.append("high network centrality (bottleneck)")
+                reason_parts.append(f"{prod} sector")
+
+                return {
+                    "node":     r["node"],
+                    "Supplier": r["city_name"],
+                    "Country":  r["country"],
+                    "Sector":   prod,
+                    "Tier":     tier,
+                    "Score":    round(score, 3),
+                    "Decision": decision,
+                    "Action":   action,
+                    "Reason":   ". ".join(reason_parts) + ".",
+                    "_dec_col": dec_col,
+                }
+
+            csco_rows = [_csco_row(r) for _, r in risk_df.head(15).iterrows()]
+
+            # KPI strip
+            n_replace  = sum(1 for x in csco_rows if x["Decision"] == "REPLACE")
+            n_monitor  = sum(1 for x in csco_rows if x["Decision"] == "MONITOR")
+            n_standard = sum(1 for x in csco_rows if x["Decision"] == "STANDARD")
+            kc1, kc2, kc3 = st.columns(3)
+            kc1.metric("🔴 REPLACE",  n_replace,  help="Immediate alternative sourcing required")
+            kc2.metric("🟠 MONITOR",  n_monitor,  help="Elevated watch, contingency prep")
+            kc3.metric("🟢 STANDARD", n_standard, help="Standard monitoring")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Render decision table rows
+            for row in csco_rows:
+                dec_col = row["_dec_col"]
+                st.markdown(f"""
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px;
+                            padding:0.8rem 1.1rem; margin-bottom:0.5rem;
+                            border-left:4px solid {dec_col};">
+                    <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
+                        <div style="min-width:160px;">
+                            <div style="font-weight:700; color:#e2e8f0;">{row['Supplier']}</div>
+                            <div style="color:#64748b; font-size:0.78rem;">
+                                {row['Country']} · {row['Sector']} · Tier {row['Tier']}
+                            </div>
+                        </div>
+                        <div style="font-size:1.25rem; font-weight:700;
+                                    color:{'#ef4444' if row['Score']>=0.65 else '#f97316' if row['Score']>=0.40 else '#22c55e'};">
+                            {row['Score']:.3f}
+                        </div>
+                        <div style="background:{dec_col}22; color:{dec_col};
+                                    border-radius:6px; padding:3px 12px;
+                                    font-weight:700; font-size:0.85rem; letter-spacing:0.05em;">
+                            {row['Decision']}
+                        </div>
+                        <div style="flex:1; color:#cbd5e1; font-size:0.85rem;">
+                            {row['Action']}
+                        </div>
+                    </div>
+                    <div style="margin-top:0.45rem; color:#475569; font-size:0.78rem;
+                                font-style:italic; padding-left:0.2rem;">
+                        ↳ {row['Reason']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Export
+            st.markdown("<br>", unsafe_allow_html=True)
+            csco_export = pd.DataFrame([
+                {k: v for k, v in r.items() if not k.startswith("_") and k != "node"}
+                for r in csco_rows
+            ])
+            st.download_button(
+                label     = "⬇️ Export Decision Table CSV",
+                data      = csco_export.to_csv(index=False),
+                file_name = "csco_decision_table.csv",
+                mime      = "text/csv",
+            )
+
+        st.markdown("---")
 
         source_label = (
             "🤖 Generated by Gemini 1.5 Flash"
@@ -1362,6 +2135,300 @@ def main():
                 "anomaly_level": "Level",
             })
             st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+    # ==================================================================
+    # TAB 7 — AI Agent
+    # ==================================================================
+    with tab7:
+        st.markdown('<div class="section-header">AI Agent — Autonomous Supply Chain Decision-Maker</div>', unsafe_allow_html=True)
+
+        agent_result = results.get("agent_result")
+
+        if agent_result is None:
+            st.info("Agent result not available — re-run the analysis to activate the agent.")
+        else:
+            action_log      = agent_result.get("action_log", [])
+            final_plan      = agent_result.get("final_plan", {})
+            approved_routes = agent_result.get("approved_reroutes", [])
+            flagged         = agent_result.get("flagged_nodes", [])
+            elapsed         = agent_result.get("elapsed_seconds", 0)
+            steps_taken     = agent_result.get("steps_taken", 0)
+            source          = agent_result.get("source", "template-agent")
+
+            # ── Status banner ───────────────────────────────────────────
+            source_label = (
+                "🤖 Gemini Function-Calling Agent"
+                if source == "gemini-agent"
+                else "📋 Deterministic Fallback Agent (add GEMINI_API_KEY for live agent)"
+            )
+            plan_risk = final_plan.get("risk_level", "Unknown")
+            risk_colour = {
+                "Critical": "#ef4444", "High": "#f97316",
+                "Medium": "#eab308",   "Low": "#22c55e",
+            }.get(plan_risk, "#94a3b8")
+
+            st.markdown(f"""
+            <div class="risk-card" style="display:flex; align-items:center; gap:2rem; flex-wrap:wrap;">
+                <span style="font-size:1.5rem;">🧠</span>
+                <div>
+                    <div style="font-weight:700; font-size:1rem; color:#e2e8f0;">{source_label}</div>
+                    <div style="color:#64748b; font-size:0.82rem; margin-top:0.2rem;">
+                        Completed <b style="color:#a5b4fc;">{steps_taken} tool calls</b> in {elapsed}s
+                        &nbsp;·&nbsp; Approved <b style="color:#22c55e;">{len(approved_routes)} reroute(s)</b>
+                        &nbsp;·&nbsp; Flagged <b style="color:#ef4444;">{len(flagged)} supplier(s)</b>
+                    </div>
+                </div>
+                <span style="margin-left:auto; font-size:0.9rem; font-weight:600;
+                             color:{risk_colour}; background:#1e293b;
+                             padding:4px 14px; border-radius:8px;">
+                    {plan_risk} Risk
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Reasoning Trace ─────────────────────────────────────────
+            st.markdown("#### 🔍 Agent Reasoning Trace")
+            st.markdown(
+                "<span style='color:#64748b;font-size:0.85rem;'>"
+                "Each step shows the agent's thought, which tool it called, and what the tool returned."
+                "</span>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            TOOL_ICONS = {
+                "get_top_risks":          "📊",
+                "query_node_risk":        "🔎",
+                "get_material_risks":     "📦",
+                "get_anomaly_alerts":     "🚨",
+                "find_alternate_route":   "🛤️",
+                "approve_reroute":        "✅",
+                "flag_critical_supplier": "🚩",
+                "finalize_action_plan":   "📋",
+            }
+
+            for entry in action_log:
+                tool    = entry.get("tool")
+                thought = entry.get("thought", "")
+                result  = entry.get("result") or {}
+                args    = entry.get("args") or {}
+                step_n  = entry.get("step", "?")
+                icon    = TOOL_ICONS.get(tool, "🔧") if tool else "💬"
+
+                if entry.get("type") == "conclusion":
+                    st.markdown(f"""
+                    <div style="background:#0f172a; border:1px solid #1e293b; border-radius:10px;
+                                padding:1rem 1.2rem; margin-bottom:0.8rem;">
+                        <div style="color:#64748b; font-size:0.75rem; text-transform:uppercase;
+                                    letter-spacing:0.08em; margin-bottom:0.4rem;">
+                            💬 Agent Conclusion
+                        </div>
+                        <div style="color:#cbd5e1; font-size:0.9rem; line-height:1.6;">{thought}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    continue
+
+                # Render thought bubble
+                if thought:
+                    st.markdown(f"""
+                    <div style="border-left:3px solid #334155; padding:0.4rem 0.8rem;
+                                margin-bottom:0.3rem; color:#94a3b8; font-size:0.85rem;
+                                font-style:italic;">
+                        🧠 {thought}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Tool call card
+                args_str = ", ".join(f"{k}={repr(v)}" for k, v in args.items()) if args else ""
+                label    = f"{icon} <b>{tool}</b>({args_str})" if tool else ""
+
+                # Summarise result for display
+                result_lines = []
+                if isinstance(result, dict):
+                    for k, v in list(result.items())[:6]:
+                        if isinstance(v, list):
+                            result_lines.append(f"  {k}: [{len(v)} item(s)]")
+                        else:
+                            result_lines.append(f"  {k}: {v}")
+                result_preview = "<br>".join(
+                    f"<span style='color:#64748b;font-size:0.8rem;'>{l}</span>"
+                    for l in result_lines
+                )
+
+                st.markdown(f"""
+                <div style="background:#0f172a; border:1px solid #1e3a5f; border-radius:10px;
+                            padding:0.9rem 1.2rem; margin-bottom:0.7rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;
+                                margin-bottom:0.5rem;">
+                        <span style="color:#e2e8f0; font-size:0.9rem;">{label}</span>
+                        <span style="color:#475569; font-size:0.75rem;">Step {step_n}</span>
+                    </div>
+                    <div style="background:#070c16; border-radius:6px; padding:0.5rem 0.8rem;
+                                font-family:monospace;">
+                        {result_preview}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("---")
+
+            # ── Final Action Plan ────────────────────────────────────────
+            st.markdown("#### 📋 Final Action Plan")
+
+            plan_summary = final_plan.get("summary", "")
+            if plan_summary:
+                st.markdown(f"""
+                <div class="brief-section">
+                    <div class="brief-title">🎯 Agent Assessment</div>
+                    <div class="brief-content">{plan_summary}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            col_plan, col_meta = st.columns([3, 1])
+            with col_plan:
+                actions = final_plan.get("priority_actions", [])
+                if actions:
+                    actions_html = "".join(
+                        f"<div style='padding:0.45rem 0; border-bottom:1px solid #1e293b; "
+                        f"color:#cbd5e1; font-size:0.9rem;'>"
+                        f"<span style='color:#22c55e; font-weight:700;'>{i+1}.</span> {a}</div>"
+                        for i, a in enumerate(actions)
+                    )
+                    st.markdown(f"""
+                    <div class="brief-section">
+                        <div class="brief-title">🚀 Autonomous Decisions Made</div>
+                        {actions_html}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            with col_meta:
+                rec_days = final_plan.get("estimated_recovery_days", "?")
+                st.markdown(f"""
+                <div class="risk-card" style="text-align:center; padding:1.2rem;">
+                    <div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;
+                                letter-spacing:0.08em;">Risk Level</div>
+                    <div style="font-size:1.6rem; font-weight:700;
+                                color:{risk_colour}; margin:0.4rem 0;">{plan_risk}</div>
+                    <hr style="border-color:#1e293b; margin:0.6rem 0;">
+                    <div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;
+                                letter-spacing:0.08em;">Est. Recovery</div>
+                    <div style="font-size:1.4rem; font-weight:700;
+                                color:#a5b4fc; margin-top:0.4rem;">{rec_days} days</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("---")
+
+            # ── Approved Reroutes ────────────────────────────────────────
+            st.markdown(f"#### ✅ Agent-Approved Reroutes ({len(approved_routes)})")
+            if not approved_routes:
+                st.info("No reroutes were approved by the agent for this event.")
+            else:
+                for i, r in enumerate(approved_routes):
+                    st.markdown(f"""
+                    <div style="background:#0a2218; border:1px solid #166534; border-radius:10px;
+                                padding:0.9rem 1.2rem; margin-bottom:0.6rem;">
+                        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                            <div>
+                                <span style="font-size:0.72rem;color:#64748b;text-transform:uppercase;">
+                                    Approved Route {i+1}
+                                </span>
+                                <div style="font-weight:700; color:#e2e8f0; margin-top:0.2rem;">
+                                    📍 {r['source']} → 📍 {r['destination']}
+                                </div>
+                            </div>
+                            <span style="color:#22c55e; font-size:0.85rem; font-weight:600;">✅ Approved</span>
+                        </div>
+                        <div style="margin-top:0.5rem; color:#94a3b8; font-size:0.82rem;">
+                            {r.get('reason', '')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+
+            # ── Flagged Suppliers ────────────────────────────────────────
+            st.markdown(f"#### 🚩 Flagged Critical Suppliers ({len(flagged)})")
+            if not flagged:
+                st.info("No suppliers were flagged by the agent.")
+            else:
+                flag_cols = st.columns(min(len(flagged), 3))
+                for i, f in enumerate(flagged[:3]):
+                    priority_colour = {"high": "#ef4444", "medium": "#f97316", "low": "#eab308"}.get(
+                        f.get("priority", "high"), "#ef4444"
+                    )
+                    with flag_cols[i % 3]:
+                        st.markdown(f"""
+                        <div class="risk-card" style="text-align:center; padding:1rem;">
+                            <div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;
+                                        letter-spacing:0.08em;margin-bottom:0.3rem;">
+                                {f.get('priority','high').upper()} PRIORITY
+                            </div>
+                            <div style="font-size:1.5rem; margin:0.3rem 0;">🚩</div>
+                            <div style="font-weight:700; color:#e2e8f0; font-size:0.95rem;
+                                        margin-bottom:0.3rem;">{f.get('city', f.get('node_id','?'))}</div>
+                            <div style="font-size:0.78rem; color:#94a3b8; line-height:1.5;">
+                                {f.get('reason','')[:120]}
+                            </div>
+                            <div style="margin-top:0.5rem; display:inline-block;
+                                        background:{priority_colour}22; color:{priority_colour};
+                                        border-radius:6px; padding:2px 10px; font-size:0.75rem;
+                                        font-weight:600;">
+                                {f.get('priority','high').title()} Priority
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            st.markdown("---")
+
+            # ── Human-in-the-Loop Gate ───────────────────────────────────
+            st.markdown("#### 👤 Human Approval Gate")
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,#1e1a0a,#2d2600);
+                        border:1px solid #ca8a04; border-radius:10px;
+                        padding:1rem 1.4rem; margin-bottom:1rem;">
+                <div style="color:#fef08a; font-weight:700; font-size:0.95rem; margin-bottom:0.4rem;">
+                    ⚠️ Agent has made {len(approved_routes) + len(flagged)} autonomous decision(s)
+                </div>
+                <div style="color:#fde68a; font-size:0.85rem; line-height:1.6;">
+                    The AI agent has independently assessed the disruption, approved alternate routes,
+                    and flagged critical suppliers. Review the reasoning trace above and confirm
+                    to commit these actions.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            approval_key = f"agent_approved_{id(agent_result)}"
+            if st.session_state.get(approval_key):
+                st.success(
+                    f"✅ **All {len(approved_routes) + len(flagged)} agent decisions approved** "
+                    f"— Operations team has been notified. Routes are being activated."
+                )
+                if st.button("🔄 Reset Approval", key="reset_approval"):
+                    st.session_state[approval_key] = False
+                    st.rerun()
+            else:
+                col_approve, col_reject = st.columns(2)
+                with col_approve:
+                    if st.button(
+                        f"✅ APPROVE ALL AGENT DECISIONS ({len(approved_routes) + len(flagged)})",
+                        type="primary",
+                        use_container_width=True,
+                        key="approve_agent",
+                    ):
+                        st.session_state[approval_key] = True
+                        st.rerun()
+                with col_reject:
+                    if st.button(
+                        "❌ REJECT & RESET",
+                        use_container_width=True,
+                        key="reject_agent",
+                    ):
+                        st.warning("Agent decisions rejected. Re-run analysis to generate a new plan.")
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,133 @@ import pandas as pd
 from typing import Dict, List, Optional, Any
 
 
+def validate_upstream_exposure(
+    G:             nx.DiGraph,
+    node:          str,
+    cascade_nodes: set,
+    hops:          int = 3,
+) -> Dict[str, Any]:
+    """
+    Check whether a node's upstream supply chain is secretly exposed to the
+    disrupted region.
+
+    Walks backward (against edge direction) up to `hops` levels from `node`
+    and collects every ancestor.  Returns:
+        upstream_total   : int   — total ancestors found
+        upstream_exposed : int   — how many are in the cascade
+        exposure_ratio   : float — exposed / total  (0 if no upstream found)
+        exposed_nodes    : list  — IDs of overlapping nodes
+        validation_status: str   — "✅ Clean" | "⚠️ Partial Exposure" | "⛔ Hidden Dependency"
+    """
+    visited: set = set()
+    frontier = {node}
+
+    for _ in range(hops):
+        next_frontier: set = set()
+        for n in frontier:
+            for pred in G.predecessors(n):
+                if pred not in visited and pred != node:
+                    next_frontier.add(pred)
+        visited |= next_frontier
+        frontier = next_frontier
+        if not frontier:
+            break
+
+    upstream_total   = len(visited)
+    exposed_nodes    = [n for n in visited if n in cascade_nodes]
+    upstream_exposed = len(exposed_nodes)
+
+    if upstream_total == 0:
+        ratio = 0.0
+    else:
+        ratio = upstream_exposed / upstream_total
+
+    if ratio >= 0.50:
+        vstatus = "⛔ Hidden Dependency"
+    elif ratio >= 0.20:
+        vstatus = "⚠️ Partial Exposure"
+    else:
+        vstatus = "✅ Clean"
+
+    return {
+        "upstream_total":    upstream_total,
+        "upstream_exposed":  upstream_exposed,
+        "exposure_ratio":    round(ratio, 3),
+        "exposed_nodes":     exposed_nodes,
+        "validation_status": vstatus,
+    }
+
+
+def validate_alternate_route(
+    G:             nx.DiGraph,
+    alt_path:      List[str],
+    cascade_nodes: set,
+    supply_df:     Optional[pd.DataFrame] = None,
+) -> Dict[str, Any]:
+    """
+    Validate every intermediate node in an alternate route for hidden upstream
+    exposure to the disrupted region.
+
+    Returns a dict with:
+        route_validation     : "✅ Clean" | "⚠️ Partial Exposure" | "⛔ Hidden Dependency"
+        worst_exposure_ratio : float
+        exposed_intermediates: list of dicts  {node, city_name, exposure_ratio, exposed_upstream}
+        validation_note      : plain-English explanation
+    """
+    if not alt_path or len(alt_path) < 3:
+        return {
+            "route_validation":      "✅ Clean",
+            "worst_exposure_ratio":  0.0,
+            "exposed_intermediates": [],
+            "validation_note":       "Direct connection — no intermediate nodes to validate.",
+        }
+
+    intermediates = alt_path[1:-1]  # exclude source & destination
+    worst_ratio   = 0.0
+    exposed_intermediates: List[Dict] = []
+
+    for node in intermediates:
+        result = validate_upstream_exposure(G, node, cascade_nodes, hops=3)
+        if result["upstream_exposed"] > 0:
+            def _city(n):
+                if supply_df is not None and n in supply_df.index:
+                    row = supply_df.loc[n]
+                    return f"{row['city_name']}, {row['country']}"
+                return n
+
+            exposed_intermediates.append({
+                "node":            node,
+                "city_name":       _city(node),
+                "exposure_ratio":  result["exposure_ratio"],
+                "exposed_upstream": [_city(n) for n in result["exposed_nodes"][:5]],
+                "validation_status": result["validation_status"],
+            })
+        worst_ratio = max(worst_ratio, result["exposure_ratio"])
+
+    if worst_ratio >= 0.50:
+        route_validation = "⛔ Hidden Dependency"
+        note = (
+            "One or more intermediate nodes source >50% of their inputs from the "
+            "disrupted region. This route may fail under the same event."
+        )
+    elif worst_ratio >= 0.20:
+        route_validation = "⚠️ Partial Exposure"
+        note = (
+            "Some intermediate nodes have partial upstream exposure to the disrupted "
+            "region. Monitor closely and prepare a contingency."
+        )
+    else:
+        route_validation = "✅ Clean"
+        note = "No significant upstream exposure detected. Route is genuinely independent."
+
+    return {
+        "route_validation":      route_validation,
+        "worst_exposure_ratio":  round(worst_ratio, 3),
+        "exposed_intermediates": exposed_intermediates,
+        "validation_note":       note,
+    }
+
+
 def find_alternates(
     G:               nx.DiGraph,
     affected_nodes:  List[str],
@@ -139,6 +266,18 @@ def find_alternates(
                 return f"{row['city_name']}, {row['country']}"
             return node_id
 
+        # ---- Upstream validation (Feature 3) ----
+        cascade_nodes = set(cascade_result.keys())
+        if alt_path and alt_status == "✅ Alternate Found":
+            validation = validate_alternate_route(G, alt_path, cascade_nodes, supply_df)
+        else:
+            validation = {
+                "route_validation":      "N/A",
+                "worst_exposure_ratio":  0.0,
+                "exposed_intermediates": [],
+                "validation_note":       "No alternate route available.",
+            }
+
         results.append({
             "source":              source,
             "destination":         destination,
@@ -153,6 +292,11 @@ def find_alternates(
             "status":              alt_status,
             "hops_original":       len(orig_path) - 1,
             "hops_alternate":      len(alt_path)  - 1 if alt_path else 0,
+            # Validation fields
+            "route_validation":      validation["route_validation"],
+            "worst_exposure_ratio":  validation["worst_exposure_ratio"],
+            "exposed_intermediates": validation["exposed_intermediates"],
+            "validation_note":       validation["validation_note"],
         })
 
     # De-duplicate and sort: found alternates first, then by detour %
