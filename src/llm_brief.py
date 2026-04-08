@@ -200,56 +200,82 @@ def generate_brief(
     dict with keys: executive_summary, top_risks, immediate_actions,
                     confidence, estimated_impact, timeline, source
     """
-    # Resolve API key
-    effective_key = api_key or os.getenv("GEMINI_API_KEY", "")
+    # Resolve API key — try Gemini first, then OpenAI
+    gemini_key = api_key or os.getenv("GEMINI_API_KEY", "")
+    openai_key = os.getenv("OPENAI_API_KEY", "")
 
-    if not effective_key or effective_key == "your_gemini_api_key_here":
-        print("  [llm_brief] No Gemini API key found — using template brief")
-        brief = template_brief(disruption_info, risk_df, reroute_suggestions)
-        if shap_context:
-            brief["shap_explanation"] = shap_context
-        return brief
+    # Try Gemini (single call — reliable even on free tier)
+    if gemini_key:
+        try:
+            from google import genai
+            from google.genai import types as genai_types
+            import json
+            import re
 
-    # Try Gemini API
-    try:
-        from google import genai
-        from google.genai import types as genai_types
-        import json
-        import re
+            client = genai.Client(api_key=gemini_key)
+            prompt = _build_prompt(disruption_info, risk_df, reroute_suggestions, shap_context=shap_context)
 
-        client = genai.Client(api_key=effective_key)
-        prompt = _build_prompt(disruption_info, risk_df, reroute_suggestions, shap_context=shap_context)
+            print("  [llm_brief] Calling Gemini 2.5 Flash …")
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=0.3,
+                    max_output_tokens=2048,
+                ),
+            )
 
-        print("  [llm_brief] Calling Gemini 2.0 Flash …")
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(
-                temperature       = 0.3,
-                max_output_tokens = 8192,
-            ),
-        )
+            raw_text = response.text.strip()
+            json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+            if json_match:
+                brief = json.loads(json_match.group(0))
+                brief["source"] = "gemini-2.5-flash"
+                if shap_context:
+                    brief["shap_explanation"] = shap_context
+                print("  [llm_brief] Gemini brief generated successfully")
+                return brief
+            else:
+                raise ValueError("No JSON in Gemini response")
+        except Exception as e:
+            print(f"  [llm_brief] Gemini error: {e} — trying OpenAI")
 
-        raw_text = response.text.strip()
+    # Try OpenAI as fallback
+    if openai_key:
+        try:
+            from openai import OpenAI
+            import json
+            import re
 
-        # Extract JSON from the response (strip any markdown fences)
-        json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
-        if json_match:
-            brief = json.loads(json_match.group(0))
-            brief["source"] = "gemini-1.5-flash"
-            if shap_context:
-                brief["shap_explanation"] = shap_context
-            print("  [llm_brief] Gemini brief generated successfully")
-            return brief
-        else:
-            raise ValueError("No JSON found in Gemini response")
+            client = OpenAI(api_key=openai_key)
+            prompt = _build_prompt(disruption_info, risk_df, reroute_suggestions, shap_context=shap_context)
 
-    except Exception as e:
-        print(f"  [llm_brief] Gemini API error: {e} — falling back to template")
-        brief = template_brief(disruption_info, risk_df, reroute_suggestions)
-        if shap_context:
-            brief["shap_explanation"] = shap_context
-        return brief
+            print("  [llm_brief] Calling GPT-4o Mini …")
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a senior supply chain risk analyst. Return only valid JSON."},
+                    {"role": "user",   "content": prompt},
+                ],
+                temperature=0.3,
+                max_tokens=2048,
+            )
+            raw_text = response.choices[0].message.content.strip()
+            json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+            if json_match:
+                brief = json.loads(json_match.group(0))
+                brief["source"] = "gpt-4o-mini"
+                if shap_context:
+                    brief["shap_explanation"] = shap_context
+                print("  [llm_brief] GPT-4o Mini brief generated successfully")
+                return brief
+        except Exception as e:
+            print(f"  [llm_brief] OpenAI error: {e} — falling back to template")
+
+    print("  [llm_brief] No working AI API — using template brief")
+    brief = template_brief(disruption_info, risk_df, reroute_suggestions)
+    if shap_context:
+        brief["shap_explanation"] = shap_context
+    return brief
 
 
 # ---------------------------------------------------------------------------

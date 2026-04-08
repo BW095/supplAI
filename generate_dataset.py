@@ -419,21 +419,126 @@ WEIGHT_RANGE = {
 
 BASE_DATE = datetime(2022, 1, 1)
 
-def _random_order(src_industry: str, src_id: str, dst_id: str, order_seq: int):
-    mat  = random.choice(INDUSTRY_MATERIALS.get(src_industry, ["GEN-CARGO"]))
-    mat_id = f"{mat}-{random.randint(1000, 9999)}"
-    item_id = f"P{order_seq:02d}-{uuid.uuid4().hex[:8]}"
-    avail = BASE_DATE + timedelta(days=random.randint(0, 900))
-    deadline = avail + timedelta(days=random.randint(3, 30))
-    danger = DANGER_BY_INDUSTRY.get(src_industry, "type_1")
+# ─────────────────────────────────────────────────────────────────────────────
+# City archetypes — determines order volume multiplier per city
+# ─────────────────────────────────────────────────────────────────────────────
+# port_hub: massive throughput (5x)
+# manufacturing_core: high volume, heavy weight (3x)
+# regional_hub: moderate (2x)
+# emerging: low, irregular (1x, sparse dates)
+# normal: baseline (1x)
+CITY_ARCHETYPE = {}
+
+# Port mega-hubs → very high volume
+for _cid in ["City_53","City_24","City_38","City_35","City_63","City_51",
+             "City_72","City_66","City_84","City_47","City_75","City_79",
+             "City_92","City_108","City_106","City_138","City_137","City_141",
+             "City_150","City_152","City_128","City_142","City_62","City_122"]:
+    CITY_ARCHETYPE[_cid] = "port_hub"
+
+# Manufacturing cores → heavy weight, regular
+for _cid in ["City_1","City_2","City_46","City_48","City_43","City_27",
+             "City_33","City_26","City_30","City_37","City_44","City_45",
+             "City_34","City_71","City_76","City_77","City_82","City_130"]:
+    CITY_ARCHETYPE[_cid] = "manufacturing_core"
+
+# Emerging/irregular cities → low volume, sporadic
+for _cid in ["City_70","City_65","City_69","City_139","City_140","City_133",
+             "City_145","City_146","City_143","City_144","City_149"]:
+    CITY_ARCHETYPE[_cid] = "emerging"
+
+# ── Anomaly cities (injected unusual behaviour) ───────────────────────────────
+# Format: city_id → (anomaly_type, description)
+# anomaly_type controls what gets distorted in orders
+ANOMALY_CITIES = {
+    # Sudden volume collapse (city goes nearly silent)
+    "City_3":   "volume_collapse",   # Beijing
+    "City_13":  "volume_collapse",   # Mumbai
+    "City_56":  "volume_collapse",   # Jakarta
+
+    # Weight spike (3-5x heavier than normal — unusual cargo)
+    "City_6":   "weight_spike",      # Wuhan
+    "City_64":  "weight_spike",      # Riyadh
+    "City_25":  "weight_spike",      # Houston
+
+    # Dangerous goods surge (normally safe goods suddenly flagged as hazmat)
+    "City_48":  "danger_surge",      # Taipei
+    "City_74":  "danger_surge",      # Hefei
+
+    # Deadline compression (orders arrive with almost no lead time — panic buying)
+    "City_57":  "deadline_crunch",   # Kuala Lumpur
+    "City_46":  "deadline_crunch",   # Seoul
+
+    # Going silent then massive spike (bullwhip effect)
+    "City_55":  "bullwhip",          # Ho Chi Minh
+    "City_115": "bullwhip",          # Rio de Janeiro
+}
+
+
+def _orders_for_edge(src_id: str, dst_id: str, src_industry: str, order_seq: int):
+    """
+    Generate orders for one edge, applying city archetypes and anomaly patterns.
+    Returns list of order rows.
+    """
+    archetype    = CITY_ARCHETYPE.get(src_id, "normal")
+    anomaly_type = ANOMALY_CITIES.get(src_id)
+
+    # ── Base order count by archetype ────────────────────────────────────────
+    if archetype == "port_hub":
+        n_orders = random.randint(10, 18)
+    elif archetype == "manufacturing_core":
+        n_orders = random.randint(6, 12)
+    elif archetype == "emerging":
+        n_orders = random.randint(1, 3)
+    else:
+        n_orders = random.randint(3, 7)
+
+    # Anomaly: volume collapse → only 0-1 orders
+    if anomaly_type == "volume_collapse":
+        n_orders = random.randint(0, 1)
+
+    # Anomaly: bullwhip — half the edges get 0 orders, other half get 20+
+    if anomaly_type == "bullwhip":
+        n_orders = 0 if random.random() < 0.6 else random.randint(15, 25)
+
+    rows = []
     lo, hi = WEIGHT_RANGE.get(src_industry, (10_000, 500_000))
-    weight = random.randint(lo, hi)
-    area   = random.randint(500, 100_000)
-    order_id = f"A{order_seq + 140000:06d}"
-    return [order_id, mat_id, item_id, src_id, dst_id,
-            avail.strftime("%Y-%m-%d %H:%M:%S"),
-            deadline.strftime("%Y-%m-%d %H:%M:%S"),
-            danger, area, weight]
+    danger_base = DANGER_BY_INDUSTRY.get(src_industry, "type_1")
+
+    for _ in range(n_orders):
+        mat    = random.choice(INDUSTRY_MATERIALS.get(src_industry, ["GEN-CARGO"]))
+        mat_id = f"{mat}-{random.randint(1000, 9999)}"
+        item_id = f"P{order_seq:02d}-{uuid.uuid4().hex[:8]}"
+        order_id = f"A{order_seq + 140000:06d}"
+
+        # ── Date range ───────────────────────────────────────────────────────
+        avail    = BASE_DATE + timedelta(days=random.randint(0, 900))
+
+        if anomaly_type == "deadline_crunch":
+            # Only 0-2 days lead time instead of 3-30
+            deadline = avail + timedelta(days=random.randint(0, 2))
+        else:
+            deadline = avail + timedelta(days=random.randint(3, 30))
+
+        # ── Weight ───────────────────────────────────────────────────────────
+        weight = random.randint(lo, hi)
+        if anomaly_type == "weight_spike":
+            weight = int(weight * random.uniform(3.0, 5.5))  # 3-5x heavier
+
+        # ── Danger type ──────────────────────────────────────────────────────
+        danger = danger_base
+        if anomaly_type == "danger_surge":
+            # Force high-danger regardless of industry
+            danger = random.choice(["type_3", "type_4"])
+
+        area = random.randint(500, 100_000)
+        rows.append([order_id, mat_id, item_id, src_id, dst_id,
+                     avail.strftime("%Y-%m-%d %H:%M:%S"),
+                     deadline.strftime("%Y-%m-%d %H:%M:%S"),
+                     danger, area, weight])
+        order_seq += 1
+
+    return rows, order_seq
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -500,13 +605,11 @@ def main():
                     "Available_Time","Deadline","Danger_Type","Area","Weight"])
         for src_id, dst_id, _ in edge_list:
             src_industry = city_lookup[src_id]["industry"]
-            # 3–8 orders per edge (more for high-volume routes)
-            n_orders = random.randint(3, 8)
-            for _ in range(n_orders):
-                row = _random_order(src_industry, src_id, dst_id, order_seq)
+            rows, order_seq = _orders_for_edge(src_id, dst_id, src_industry, order_seq)
+            for row in rows:
                 w.writerow(row)
-                order_seq += 1
     print(f"  OK order_large.csv   ({order_seq} orders)")
+    print(f"  Anomaly cities injected: {len(ANOMALY_CITIES)}")
 
     # ── Summary ──────────────────────────────────────────────────────────────
     countries = len({c["country"] for c in city_lookup.values()})

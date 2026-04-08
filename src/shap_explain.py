@@ -42,19 +42,19 @@ FEATURE_LABELS: Dict[str, str] = {
 }
 
 FEATURE_DESCRIPTIONS: Dict[str, str] = {
-    "distance":              "Total route distance in metres. Longer routes carry higher delay probability.",
-    "shipment_weight":       "Cargo weight in grams. Heavier loads face more handling complexity.",
-    "SLA":                   "Service Level Agreement in days. Tighter SLAs leave less buffer.",
-    "pickup_metro":          "1 if the pickup location is a metro (urban) hub — generally lower delay.",
-    "pickup_non_metro":      "1 if the pickup location is non-metropolitan — higher delay risk.",
-    "drop_metro":            "1 if the delivery location is a metro hub — generally lower delay.",
-    "drop_non_metro":        "1 if the delivery location is non-metropolitan — higher delay risk.",
-    "cp_delay_per_quarter":  "Fraction of carrier shipments delayed this quarter (0–1). High = riskier carrier.",
-    "cp_ontime_per_quarter": "Fraction of carrier shipments on-time this quarter (0–1). High = reliable carrier.",
-    "cp_delay_per_month":    "Fraction of carrier shipments delayed this month (0–1).",
-    "cp_ontime_per_month":   "Fraction of carrier shipments on-time this month (0–1).",
-    "holiday_in_between":    "1 if a public holiday falls within the shipment window — adds buffer days.",
-    "is_sunday_in_between":  "1 if a Sunday falls within the shipment window — logistics slowdown.",
+    "distance":              "Total route distance in km. Longer routes have more checkpoints, border crossings, and exposure to regional disruptions — each adding delay probability.",
+    "shipment_weight":       "Cargo weight. Heavier shipments require specialised handling, larger vehicles, and stricter customs checks — all increasing the chance of a delay.",
+    "SLA":                   "Service Level Agreement — the contracted delivery window in days. Tighter SLAs leave zero buffer if anything goes wrong en route.",
+    "pickup_metro":          "Whether the origin is a major urban logistics hub. Metro hubs have better infrastructure, 24/7 operations, and faster handoffs — reducing delay risk.",
+    "pickup_non_metro":      "Whether the origin is a non-metropolitan location. Rural or remote origins have limited carrier options and slower processing — increasing delay risk.",
+    "drop_metro":            "Whether the destination is a major urban hub. Metro destinations have better receiving infrastructure and faster customs clearance.",
+    "drop_non_metro":        "Whether the destination is non-metropolitan. Last-mile delivery to remote areas is the most common cause of delay.",
+    "cp_delay_per_quarter":  "Carrier's delay rate over the past 3 months (0 = never late, 1 = always late). A carrier that delayed 30%+ of shipments this quarter is a serious risk signal.",
+    "cp_ontime_per_quarter": "Carrier's on-time delivery rate this quarter. High on-time rate means a reliable partner — this feature reduces predicted delay risk.",
+    "cp_delay_per_month":    "Carrier's delay rate over the past 30 days. Recent performance is more predictive than quarterly — sudden spikes here indicate operational issues.",
+    "cp_ontime_per_month":   "Carrier's on-time rate this month. If this has dropped compared to the quarterly rate, the carrier may be experiencing current capacity problems.",
+    "holiday_in_between":    "Whether a public holiday falls within the shipment window. Holidays cause warehouse closures, skeleton crews, and customs backlogs — adding 1-3 days.",
+    "is_sunday_in_between":  "Whether a Sunday falls within the shipment window. Sunday logistics operations run at reduced capacity in most countries — a known delay multiplier.",
 }
 
 # ---------------------------------------------------------------------------
@@ -326,7 +326,7 @@ def shap_waterfall_figure(
 
     fig.update_layout(
         title=dict(
-            text=f"SHAP Waterfall — Why <b>{node_name}</b> is at risk",
+            text=f"Delay Risk Breakdown — What is driving delay probability for <b>{node_name}</b>",
             font=dict(color="#e2e8f0", size=14, family="Inter"),
             x=0,
         ),
@@ -340,11 +340,21 @@ def shap_waterfall_figure(
         yaxis=dict(
             title="Delay Probability Contribution",
             color="#94a3b8", gridcolor="#1e293b",
+            title_font=dict(size=11),
         ),
         font=dict(color="#e2e8f0", family="Inter"),
-        height=420,
-        margin=dict(t=50, b=80, l=20, r=20),
+        height=440,
+        margin=dict(t=50, b=100, l=80, r=30),
         showlegend=False,
+        annotations=[
+            dict(
+                x=0.01, y=1.04, xref="paper", yref="paper",
+                text="<b style='color:#ef4444;'>Red</b> = increases delay risk &nbsp;|&nbsp; <b style='color:#22c55e;'>Green</b> = reduces delay risk",
+                showarrow=False,
+                font=dict(size=11, color="#94a3b8"),
+                align="left",
+            )
+        ],
     )
     return fig
 
@@ -359,26 +369,40 @@ def shap_to_text(
     top_k: int = 5,
 ) -> str:
     """
-    Produce a compact plain-English bullet list of the top-K SHAP drivers
-    for a given node.  Injected directly into the Gemini prompt.
-
-    Example output:
-      • Route Distance: +0.182 (long haul increases delay risk significantly)
-      • Carrier Delay Rate (Q): +0.141 (carrier has poor quarterly track record)
-      • Holiday En Route: +0.089 (public holiday adds buffer time)
-      • SLA (days): -0.061 (tight SLA reduces margin for error)
-      • Carrier On-Time Rate (Q): -0.048 (reliable carrier partially mitigates risk)
+    Produce a clear, business-friendly explanation of why this node's
+    shipments are predicted to be delayed or reliable.
+    Injected into the Gemini prompt and shown in the dashboard.
     """
     if not node_shap:
         return "No SHAP data available."
 
     sorted_items = sorted(node_shap.items(), key=lambda x: abs(x[1]), reverse=True)[:top_k]
-    lines = [f"SHAP feature drivers for {node_name}:"]
-    for feat, val in sorted_items:
-        label = FEATURE_LABELS.get(feat, feat)
-        desc  = FEATURE_DESCRIPTIONS.get(feat, "")
-        direction = "increases" if val > 0 else "decreases"
-        lines.append(f"  • {label}: {val:+.4f}  ({desc.split('.')[0].lower()} — {direction} delay risk)")
+
+    risk_drivers    = [(f, v) for f, v in sorted_items if v > 0]
+    protect_drivers = [(f, v) for f, v in sorted_items if v <= 0]
+
+    lines = []
+
+    if risk_drivers:
+        lines.append("WHAT IS INCREASING DELAY RISK:")
+        for feat, val in risk_drivers:
+            label = FEATURE_LABELS.get(feat, feat)
+            desc  = FEATURE_DESCRIPTIONS.get(feat, "")
+            # Extract the first sentence only
+            short = desc.split(".")[0]
+            lines.append(f"  + {label} (impact: +{val:.3f})")
+            lines.append(f"    {short}.")
+
+    if protect_drivers:
+        lines.append("")
+        lines.append("WHAT IS PROTECTING AGAINST DELAY:")
+        for feat, val in protect_drivers:
+            label = FEATURE_LABELS.get(feat, feat)
+            desc  = FEATURE_DESCRIPTIONS.get(feat, "")
+            short = desc.split(".")[0]
+            lines.append(f"  - {label} (impact: {val:.3f})")
+            lines.append(f"    {short}.")
+
     return "\n".join(lines)
 
 

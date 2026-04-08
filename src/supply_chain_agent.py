@@ -3,7 +3,7 @@ supply_chain_agent.py
 ----------------------
 Agentic AI loop for autonomous supply chain decision-making.
 
-The agent uses Gemini's function calling API to:
+The agent uses OpenAI's function calling API to:
   1. Assess disruption scope (get_top_risks, query_node_risk)
   2. Identify what materials / goods are choked (get_material_risks)
   3. Check for pre-existing anomalies (get_anomaly_alerts)
@@ -12,7 +12,7 @@ The agent uses Gemini's function calling API to:
   6. Flag critical suppliers for backup sourcing (flag_critical_supplier)
   7. Produce a structured CSCO action plan (finalize_action_plan)
 
-Falls back to a deterministic simulation when no Gemini API key is available,
+Falls back to a deterministic simulation when no API key is available,
 so the UI always works for demo purposes.
 """
 
@@ -56,7 +56,7 @@ class SupplyChainAgent:
         self.material_summary = material_summary
         self.anomaly_df = anomaly_df
         self.disruption_info = disruption_info
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
 
         # Mutable state updated by tool calls
         self.action_log: list[dict] = []
@@ -78,14 +78,14 @@ class SupplyChainAgent:
             "countries_affected": int(self.risk_df["country"].nunique()),
             "nodes": [
                 {
-                    "node_id":          r["node"],
-                    "city":             r["city_name"],
-                    "country":          r["country"],
-                    "product_category": r["product_category"],
-                    "tier":             int(r["tier"]),
-                    "risk_score":       round(float(r["risk_score"]), 4),
-                    "risk_level":       r["risk_level"],
-                    "cascade_depth":    int(r["cascade_depth"]),
+                    "node_id":          r.get("node", "?"),
+                    "city":             r.get("city_name", "?"),
+                    "country":          r.get("country", "?"),
+                    "product_category": r.get("product_category", "General"),
+                    "tier":             int(r.get("tier", 3)),
+                    "risk_score":       round(float(r.get("risk_score", 0)), 4),
+                    "risk_level":       r.get("risk_level", "Unknown"),
+                    "cascade_depth":    int(r.get("cascade_depth", 0)),
                 }
                 for _, r in top5.iterrows()
             ],
@@ -99,17 +99,17 @@ class SupplyChainAgent:
             return {"error": f"Node {node_id} not in risk table"}
         r = row.iloc[0]
         return {
-            "node_id":          node_id,
-            "city_name":        r["city_name"],
-            "country":          r["country"],
-            "product_category": r["product_category"],
-            "tier":             int(r["tier"]),
-            "risk_score":       round(float(r["risk_score"]), 4),
-            "risk_level":       r["risk_level"],
-            "cascade_depth":    int(r["cascade_depth"]),
-            "delay_probability": round(float(r["delay_prob"]), 4),
-            "out_degree":       self.G.out_degree(node_id),
-            "in_degree":        self.G.in_degree(node_id),
+            "node_id":           node_id,
+            "city_name":         r.get("city_name", "?"),
+            "country":           r.get("country", "?"),
+            "product_category":  r.get("product_category", "General"),
+            "tier":              int(r.get("tier", 3)),
+            "risk_score":        round(float(r.get("risk_score", 0)), 4),
+            "risk_level":        r.get("risk_level", "Unknown"),
+            "cascade_depth":     int(r.get("cascade_depth", 0)),
+            "delay_probability": round(float(r.get("delay_prob", r.get("delay_probability", 0.5))), 4),
+            "out_degree":        self.G.out_degree(node_id),
+            "in_degree":         self.G.in_degree(node_id),
         }
 
     def _get_material_risks(self) -> dict:
@@ -245,24 +245,83 @@ class SupplyChainAgent:
     # ------------------------------------------------------------------
 
     def run(self, max_turns: int = 12) -> dict:
-        if not self.api_key or self.api_key.strip() in ("", "your_gemini_api_key_here"):
-            print("  [agent] No Gemini API key — running deterministic fallback agent")
-            return self._run_fallback()
+        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        openai_key = self.api_key   # already resolved from OPENAI_API_KEY in __init__
+
+        # Try OpenAI function-calling agent first
+        if openai_key and openai_key.strip() not in ("", "your_openai_api_key_here"):
+            try:
+                return self._run_openai(max_turns)
+            except Exception as exc:
+                print(f"  [agent] OpenAI agent error: {exc} — trying Gemini-enhanced fallback")
+
+        # Run deterministic tools + enrich with a single Gemini reasoning call
+        result = self._run_fallback(source_tag="gemini-enhanced")
+        if gemini_key and gemini_key.strip():
+            self._enrich_with_gemini(result, gemini_key)
+        return result
+
+    # ------------------------------------------------------------------
+    # Gemini single-call reasoning enrichment
+    # ------------------------------------------------------------------
+
+    def _enrich_with_gemini(self, result: dict, gemini_key: str) -> None:
+        """
+        Make ONE Gemini call to generate human-readable reasoning for each
+        tool step already executed by the deterministic agent.
+        Replaces generic thought strings with Gemini-generated analysis.
+        """
         try:
-            return self._run_gemini(max_turns)
-        except Exception as exc:
-            print(f"  [agent] Gemini agent error: {exc} — falling back to template agent")
-            return self._run_fallback()
+            from google import genai
+            client = genai.Client(api_key=gemini_key)
+
+            event    = self.disruption_info.get("event_text", "Unknown disruption")
+            severity = self.disruption_info.get("severity", "medium")
+
+            # Summarise what the agent found
+            tool_summary = "\n".join([
+                f"Step {e['step']}: {e['tool']}() → {str(e['result'])[:200]}"
+                for e in result["action_log"] if e.get("tool")
+            ])
+
+            prompt = (
+                f"You are an autonomous supply chain AI agent that just completed an analysis.\n"
+                f"Disruption: {event} (Severity: {severity.upper()})\n\n"
+                f"Tools executed and results:\n{tool_summary}\n\n"
+                f"For each tool call step, write ONE sentence of reasoning that a CSCO "
+                f"(Chief Supply Chain Officer) would say BEFORE calling that tool — "
+                f"explaining WHY they are calling it and what they expect to learn.\n"
+                f"Return a JSON array of strings, one per step (in order):\n"
+                f'["<reasoning for step 1>", "<reasoning for step 2>", ...]'
+            )
+
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            import json, re
+            raw = response.text.strip()
+            match = re.search(r"\[.*\]", raw, re.DOTALL)
+            if match:
+                thoughts = json.loads(match.group(0))
+                tool_steps = [e for e in result["action_log"] if e.get("tool")]
+                for i, step_entry in enumerate(tool_steps):
+                    if i < len(thoughts):
+                        step_entry["thought"] = thoughts[i]
+                result["source"] = "gemini-enhanced"
+                print(f"  [agent] Gemini reasoning enrichment applied ({len(thoughts)} thoughts)")
+        except Exception as e:
+            print(f"  [agent] Gemini enrichment failed: {e} — keeping deterministic thoughts")
 
     # ------------------------------------------------------------------
-    # Gemini function-calling loop
+    # OpenAI function-calling loop
     # ------------------------------------------------------------------
 
-    def _run_gemini(self, max_turns: int) -> dict:
-        from google import genai
-        from google.genai import types as T
+    def _run_openai(self, max_turns: int) -> dict:
+        import json
+        from openai import OpenAI
 
-        client = genai.Client(api_key=self.api_key)
+        client = OpenAI(api_key=self.api_key)
 
         event      = self.disruption_info.get("event_text", "Unknown disruption")
         severity   = self.disruption_info.get("severity", "medium")
@@ -286,103 +345,128 @@ class SupplyChainAgent:
             f"Cite specific node names, risk scores, and materials in your plan."
         )
 
-        # Tool schema (plain-dict parameters — accepted by all google-genai versions)
-        tool_declarations = [
-            T.FunctionDeclaration(
-                name="get_top_risks",
-                description="Get the top 5 highest-risk supply chain nodes in the current disruption cascade with risk scores and product categories.",
-                parameters={"type": "object", "properties": {}},
-            ),
-            T.FunctionDeclaration(
-                name="query_node_risk",
-                description="Query detailed risk information for a specific node by its ID (e.g. 'City_1').",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "node_id": {"type": "string", "description": "Node ID, e.g. City_1"},
-                    },
-                    "required": ["node_id"],
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_top_risks",
+                    "description": "Get the top 5 highest-risk supply chain nodes with risk scores and product categories.",
+                    "parameters": {"type": "object", "properties": {}},
                 },
-            ),
-            T.FunctionDeclaration(
-                name="get_material_risks",
-                description="Get the top disrupted material flows — which goods and commodities are choked and how many routes are affected.",
-                parameters={"type": "object", "properties": {}},
-            ),
-            T.FunctionDeclaration(
-                name="get_anomaly_alerts",
-                description="Check for supply chain nodes showing anomalous shipment patterns that may compound the disruption risk.",
-                parameters={"type": "object", "properties": {}},
-            ),
-            T.FunctionDeclaration(
-                name="find_alternate_route",
-                description="Find an alternate supply route that avoids disrupted nodes between two locations.",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "source":      {"type": "string", "description": "Origin city name or node ID"},
-                        "destination": {"type": "string", "description": "Destination city name or node ID"},
-                    },
-                    "required": ["source", "destination"],
-                },
-            ),
-            T.FunctionDeclaration(
-                name="approve_reroute",
-                description="Approve an alternate supply route as the recommended action. Call for each route you decide to activate.",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "source":      {"type": "string"},
-                        "destination": {"type": "string"},
-                        "reason":      {"type": "string", "description": "Business justification"},
-                    },
-                    "required": ["source", "destination", "reason"],
-                },
-            ),
-            T.FunctionDeclaration(
-                name="flag_critical_supplier",
-                description="Flag a supply chain node as critical — requiring immediate backup sourcing or escalation.",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "node_id":  {"type": "string"},
-                        "reason":   {"type": "string"},
-                        "priority": {"type": "string", "description": "high | medium | low"},
-                    },
-                    "required": ["node_id", "reason"],
-                },
-            ),
-            T.FunctionDeclaration(
-                name="finalize_action_plan",
-                description="Create the final structured CSCO action plan. Call this when you have gathered enough data and made your decisions.",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "summary": {
-                            "type": "string",
-                            "description": "2-3 sentence executive summary citing specific nodes and materials",
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "query_node_risk",
+                    "description": "Query detailed risk information for a specific node by its ID (e.g. 'City_1').",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "node_id": {"type": "string", "description": "Node ID, e.g. City_1"},
                         },
-                        "priority_actions": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "4-6 specific, actionable decisions the agent has made",
-                        },
-                        "estimated_recovery_days": {
-                            "type": "integer",
-                            "description": "Estimated days to full supply chain recovery",
-                        },
-                        "risk_level": {
-                            "type": "string",
-                            "description": "Critical | High | Medium | Low",
-                        },
+                        "required": ["node_id"],
                     },
-                    "required": ["summary", "priority_actions", "estimated_recovery_days", "risk_level"],
                 },
-            ),
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_material_risks",
+                    "description": "Get the top disrupted material flows — which goods and commodities are choked.",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_anomaly_alerts",
+                    "description": "Check for supply chain nodes showing anomalous shipment patterns.",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "find_alternate_route",
+                    "description": "Find an alternate supply route that avoids disrupted nodes.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "source":      {"type": "string", "description": "Origin city name or node ID"},
+                            "destination": {"type": "string", "description": "Destination city name or node ID"},
+                        },
+                        "required": ["source", "destination"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "approve_reroute",
+                    "description": "Approve an alternate supply route for immediate activation.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "source":      {"type": "string"},
+                            "destination": {"type": "string"},
+                            "reason":      {"type": "string", "description": "Business justification"},
+                        },
+                        "required": ["source", "destination", "reason"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "flag_critical_supplier",
+                    "description": "Flag a supply chain node as critical — requiring immediate backup sourcing.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "node_id":  {"type": "string"},
+                            "reason":   {"type": "string"},
+                            "priority": {"type": "string", "description": "high | medium | low"},
+                        },
+                        "required": ["node_id", "reason"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "finalize_action_plan",
+                    "description": "Create the final structured CSCO action plan.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "summary": {
+                                "type": "string",
+                                "description": "2-3 sentence executive summary citing specific nodes and materials",
+                            },
+                            "priority_actions": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "4-6 specific, actionable decisions the agent has made",
+                            },
+                            "estimated_recovery_days": {
+                                "type": "integer",
+                                "description": "Estimated days to full supply chain recovery",
+                            },
+                            "risk_level": {
+                                "type": "string",
+                                "description": "Critical | High | Medium | Low",
+                            },
+                        },
+                        "required": ["summary", "priority_actions", "estimated_recovery_days", "risk_level"],
+                    },
+                },
+            },
         ]
 
-        tools   = T.Tool(function_declarations=tool_declarations)
-        contents = [T.Content(role="user", parts=[T.Part(text=system_prompt)])]
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": "Begin your autonomous assessment now."},
+        ]
 
         start = time.time()
         step  = 0
@@ -390,46 +474,41 @@ class SupplyChainAgent:
         while step < max_turns:
             step += 1
 
-            response = client.models.generate_content(
-                model  = "gemini-2.5-flash",
-                contents = contents,
-                config = T.GenerateContentConfig(
-                    tools       = [tools],
-                    temperature = 0.2,
-                    max_output_tokens = 2048,
-                ),
+            response = client.chat.completions.create(
+                model       = "gpt-4o-mini",
+                messages    = messages,
+                tools       = tools,
+                tool_choice = "auto",
+                temperature = 0.2,
+                max_tokens  = 2048,
             )
 
-            candidate = response.candidates[0]
-            contents.append(candidate.content)
+            msg = response.choices[0].message
+            messages.append(msg)
 
-            # Parse parts
-            function_calls = []
-            thought_text   = ""
-            for part in candidate.content.parts:
-                if hasattr(part, "function_call") and part.function_call:
-                    function_calls.append(part.function_call)
-                if hasattr(part, "text") and part.text:
-                    thought_text += part.text
+            thought_text   = msg.content or ""
+            tool_calls_raw = msg.tool_calls or []
 
-            if not function_calls:
-                # Agent stopped — no more tool calls
+            if not tool_calls_raw:
+                # Model stopped calling tools
                 if thought_text:
                     self.action_log.append({
-                        "step":   step,
-                        "type":   "conclusion",
+                        "step":    step,
+                        "type":    "conclusion",
                         "thought": thought_text,
-                        "tool":   None,
-                        "args":   None,
-                        "result": None,
+                        "tool":    None,
+                        "args":    None,
+                        "result":  None,
                     })
                 break
 
             # Execute all tool calls in this turn
-            response_parts = []
-            for fc in function_calls:
-                tool_name = fc.name
-                tool_args = dict(fc.args) if fc.args else {}
+            for tc in tool_calls_raw:
+                tool_name = tc.function.name
+                try:
+                    tool_args = json.loads(tc.function.arguments)
+                except Exception:
+                    tool_args = {}
 
                 print(f"  [agent] Step {step}: {tool_name}({list(tool_args.keys())})")
                 tool_result = self._dispatch(tool_name, tool_args)
@@ -444,29 +523,27 @@ class SupplyChainAgent:
                 })
                 thought_text = ""  # only attach to first call in a turn
 
-                response_parts.append(T.Part(
-                    function_response=T.FunctionResponse(
-                        name=tool_name,
-                        response={"result": tool_result},
-                    )
-                ))
+                messages.append({
+                    "role":         "tool",
+                    "tool_call_id": tc.id,
+                    "content":      json.dumps(tool_result),
+                })
 
                 if tool_name == "finalize_action_plan" and self.final_plan:
                     break
-
-            contents.append(T.Content(role="user", parts=response_parts))
 
             if self.final_plan:
                 break
 
         elapsed = round(time.time() - start, 1)
-        return self._build_result(elapsed, source="gemini-agent")
+        return self._build_result(elapsed, source="openai-agent")
 
     # ------------------------------------------------------------------
     # Deterministic fallback agent (no API key needed)
     # ------------------------------------------------------------------
 
-    def _run_fallback(self) -> dict:
+    def _run_fallback(self, source_tag: str = "template-agent") -> dict:
+        self._fallback_source = source_tag
         start = time.time()
 
         # Step 1 — assess top risks
@@ -622,7 +699,7 @@ class SupplyChainAgent:
         })
 
         elapsed = round(time.time() - start, 1)
-        return self._build_result(elapsed, source="template-agent")
+        return self._build_result(elapsed, source=getattr(self, "_fallback_source", "template-agent"))
 
     # ------------------------------------------------------------------
     # Build final result dict
