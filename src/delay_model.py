@@ -6,11 +6,11 @@ Trains a shipment delay prediction model on the real logistics dataset
 delay probabilities for the supply chain graph.
 
 Model choice (auto-detected at runtime):
-  1. XGBoost with GPU  (device='cuda', tree_method='hist')  ← preferred
-  2. RandomForest CPU  (n_jobs=-1)                          ← fallback
+  1. XGBoost with GPU  (device='cuda', tree_method='hist')  â† preferred
+  2. RandomForest CPU  (n_jobs=-1)                          â† fallback
 
 The trained model is saved to models/delay_model.pkl and reloaded on
-subsequent runs — so training happens only ONCE.
+subsequent runs â€” so training happens only ONCE.
 
 Key features used (all present in the dataset, no target leakage):
   distance, shipment_weight, SLA, pickup_metro, pickup_non_metro,
@@ -25,7 +25,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -59,8 +59,83 @@ TARGET_COL = "is_delayed"
 
 
 # ---------------------------------------------------------------------------
+# Runtime safety helpers
+# ---------------------------------------------------------------------------
+def _force_xgb_cpu_predictor(model: Any) -> None:
+    """
+    Avoid CUDA/CPU inference mismatch warnings at runtime.
+    This keeps inference on CPU even if the model was trained on CUDA.
+    """
+    try:
+        module_name = model.__class__.__module__.lower()
+    except Exception:
+        module_name = ""
+
+    if "xgboost" not in module_name:
+        return
+
+    try:
+        model.set_params(device="cpu")
+    except Exception:
+        pass
+
+    try:
+        booster = model.get_booster()
+        booster.set_param({"device": "cpu"})
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Model training
 # ---------------------------------------------------------------------------
+def _resolve_dataset_columns(train_path: Path) -> Tuple[list[str], dict[str, str]]:
+    """
+    Resolve required columns from CSV header while tolerating accidental
+    leading/trailing whitespace in source column names.
+    """
+    required = FEATURE_COLS + [TARGET_COL]
+    header = pd.read_csv(train_path, nrows=0).columns.tolist()
+
+    # Map stripped names -> original names present in file.
+    stripped_to_original: dict[str, str] = {}
+    for col in header:
+        key = str(col).strip()
+        if key and key not in stripped_to_original:
+            stripped_to_original[key] = col
+
+    missing = [col for col in required if col not in stripped_to_original]
+    if missing:
+        raise ValueError(
+            "Training dataset is missing required column(s): "
+            + ", ".join(missing)
+        )
+
+    usecols = [stripped_to_original[col] for col in required]
+    rename_map = {stripped_to_original[col]: col for col in required}
+    return usecols, rename_map
+
+
+def _load_training_frame(train_path: Path) -> pd.DataFrame:
+    """
+    Load training dataframe with canonical feature names.
+    """
+    usecols, rename_map = _resolve_dataset_columns(train_path)
+    df = pd.read_csv(train_path, usecols=usecols)
+    df.rename(columns=rename_map, inplace=True)
+    return df
+
+
+def load_training_data(train_path: Path = TRAIN_PATH) -> pd.DataFrame:
+    """
+    Public loader for delay training data with canonical column names.
+    """
+    cols_to_load = FEATURE_COLS + [TARGET_COL]
+    df = _load_training_frame(train_path)
+    df.dropna(subset=cols_to_load, inplace=True)
+    return df
+
+
 def _get_model():
     """Return the best available classifier."""
     try:
@@ -105,11 +180,7 @@ def train_and_save(
     t0 = time.time()
 
     # Load only the columns we need (faster I/O on large file)
-    cols_to_load = FEATURE_COLS + [TARGET_COL]
-    df = pd.read_csv(train_path, usecols=cols_to_load)
-
-    # Drop rows with any missing values in our chosen columns
-    df.dropna(subset=cols_to_load, inplace=True)
+    df = load_training_data(train_path)
 
     print(f"  [delay_model] Loaded {len(df):,} rows in {time.time()-t0:.1f}s")
     print(f"  [delay_model] Class balance: {df[TARGET_COL].value_counts().to_dict()}")
@@ -119,9 +190,10 @@ def train_and_save(
 
     model, model_type = _get_model()
 
-    print(f"  [delay_model] Training ({model_type}) on {len(X):,} samples …")
+    print(f"  [delay_model] Training ({model_type}) on {len(X):,} samples â€¦")
     t1 = time.time()
     model.fit(X, y)
+    _force_xgb_cpu_predictor(model)
     elapsed = time.time() - t1
     print(f"  [delay_model] Training complete in {elapsed:.1f}s")
 
@@ -160,7 +232,7 @@ def load_or_train(
 
     Parameters
     ----------
-    force_retrain : bool — set True to re-train even if model file exists
+    force_retrain : bool â€” set True to re-train even if model file exists
 
     Returns
     -------
@@ -169,11 +241,34 @@ def load_or_train(
     if model_path.exists() and not force_retrain:
         print(f"  [delay_model] Loading cached model from {model_path}")
         artifact = joblib.load(model_path)
+        _force_xgb_cpu_predictor(artifact.get("model"))
         print(f"  [delay_model] Loaded ({artifact['model_type']}) | "
               f"Train acc: {artifact['train_acc']} | AUC: {artifact['train_auc']}")
         return artifact
 
     return train_and_save(train_path, model_path)
+
+
+def load_model(
+    model_path: Path = MODEL_PATH,
+) -> Dict[str, Any]:
+    """
+    Load an already-trained delay model artifact.
+    Raises FileNotFoundError when model is absent.
+    """
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Delay model not found at {model_path}. "
+            "Train it first with: python train_models.py"
+        )
+
+    artifact = joblib.load(model_path)
+    _force_xgb_cpu_predictor(artifact.get("model"))
+    if "model" not in artifact:
+        raise ValueError(f"Invalid delay model artifact at {model_path}: missing 'model'")
+    if "features" not in artifact:
+        artifact["features"] = FEATURE_COLS
+    return artifact
 
 
 def predict_delay_proba(
@@ -200,7 +295,7 @@ def predict_delay_proba(
 
     Returns
     -------
-    float in [0, 1] — probability of delay
+    float in [0, 1] â€” probability of delay
     """
     model = artifact["model"]
     features = np.array([[
@@ -253,7 +348,7 @@ def estimate_node_delay(
     return predict_delay_proba(
         artifact,
         distance_m        = avg_distance,
-        shipment_weight_g = avg_weight * 1000,  # kg → g
+        shipment_weight_g = avg_weight * 1000,  # kg â†’ g
     )
 
 
@@ -267,3 +362,4 @@ if __name__ == "__main__":
     print(f"\nTest prediction (long route, high delay rate): {p:.3f}")
     p2 = predict_delay_proba(artifact, distance_m=100_000, cp_delay_q=0.05)
     print(f"Test prediction (short route, low delay rate): {p2:.3f}")
+

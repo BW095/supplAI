@@ -5,10 +5,10 @@ ML explainability layer for the delay prediction model using SHAP
 (SHapley Additive exPlanations).
 
 Provides:
-  compute_shap()          → dict of {node_id: {feature: shap_val}} for top-N nodes
-  shap_bar_figure()       → Plotly Figure — global mean |SHAP| feature importance
-  shap_waterfall_figure() → Plotly Figure — per-node waterfall (push/pull per feature)
-  shap_to_text()          → plain-English summary string (for Gemini prompt injection)
+  compute_shap()          â†’ dict of {node_id: {feature: shap_val}} for top-N nodes
+  shap_bar_figure()       â†’ Plotly Figure â€” global mean |SHAP| feature importance
+  shap_waterfall_figure() â†’ Plotly Figure â€” per-node waterfall (push/pull per feature)
+  shap_to_text()          â†’ plain-English summary string (for Gemini prompt injection)
 
 Works with both XGBoost (TreeExplainer, fast) and RandomForest (TreeExplainer) backends.
 Falls back gracefully if SHAP is not installed.
@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import plotly.graph_objects as go
 
 # ---------------------------------------------------------------------------
-# Feature display names — human-readable labels for the 13 model features
+# Feature display names â€” human-readable labels for the 13 model features
 # ---------------------------------------------------------------------------
 FEATURE_LABELS: Dict[str, str] = {
     "distance":              "Route Distance",
@@ -42,19 +42,19 @@ FEATURE_LABELS: Dict[str, str] = {
 }
 
 FEATURE_DESCRIPTIONS: Dict[str, str] = {
-    "distance":              "Total route distance in km. Longer routes have more checkpoints, border crossings, and exposure to regional disruptions — each adding delay probability.",
-    "shipment_weight":       "Cargo weight. Heavier shipments require specialised handling, larger vehicles, and stricter customs checks — all increasing the chance of a delay.",
-    "SLA":                   "Service Level Agreement — the contracted delivery window in days. Tighter SLAs leave zero buffer if anything goes wrong en route.",
-    "pickup_metro":          "Whether the origin is a major urban logistics hub. Metro hubs have better infrastructure, 24/7 operations, and faster handoffs — reducing delay risk.",
-    "pickup_non_metro":      "Whether the origin is a non-metropolitan location. Rural or remote origins have limited carrier options and slower processing — increasing delay risk.",
+    "distance":              "Total route distance in km. Longer routes have more checkpoints, border crossings, and exposure to regional disruptions â€” each adding delay probability.",
+    "shipment_weight":       "Cargo weight. Heavier shipments require specialised handling, larger vehicles, and stricter customs checks â€” all increasing the chance of a delay.",
+    "SLA":                   "Service Level Agreement â€” the contracted delivery window in days. Tighter SLAs leave zero buffer if anything goes wrong en route.",
+    "pickup_metro":          "Whether the origin is a major urban logistics hub. Metro hubs have better infrastructure, 24/7 operations, and faster handoffs â€” reducing delay risk.",
+    "pickup_non_metro":      "Whether the origin is a non-metropolitan location. Rural or remote origins have limited carrier options and slower processing â€” increasing delay risk.",
     "drop_metro":            "Whether the destination is a major urban hub. Metro destinations have better receiving infrastructure and faster customs clearance.",
     "drop_non_metro":        "Whether the destination is non-metropolitan. Last-mile delivery to remote areas is the most common cause of delay.",
     "cp_delay_per_quarter":  "Carrier's delay rate over the past 3 months (0 = never late, 1 = always late). A carrier that delayed 30%+ of shipments this quarter is a serious risk signal.",
-    "cp_ontime_per_quarter": "Carrier's on-time delivery rate this quarter. High on-time rate means a reliable partner — this feature reduces predicted delay risk.",
-    "cp_delay_per_month":    "Carrier's delay rate over the past 30 days. Recent performance is more predictive than quarterly — sudden spikes here indicate operational issues.",
+    "cp_ontime_per_quarter": "Carrier's on-time delivery rate this quarter. High on-time rate means a reliable partner â€” this feature reduces predicted delay risk.",
+    "cp_delay_per_month":    "Carrier's delay rate over the past 30 days. Recent performance is more predictive than quarterly â€” sudden spikes here indicate operational issues.",
     "cp_ontime_per_month":   "Carrier's on-time rate this month. If this has dropped compared to the quarterly rate, the carrier may be experiencing current capacity problems.",
-    "holiday_in_between":    "Whether a public holiday falls within the shipment window. Holidays cause warehouse closures, skeleton crews, and customs backlogs — adding 1-3 days.",
-    "is_sunday_in_between":  "Whether a Sunday falls within the shipment window. Sunday logistics operations run at reduced capacity in most countries — a known delay multiplier.",
+    "holiday_in_between":    "Whether a public holiday falls within the shipment window. Holidays cause warehouse closures, skeleton crews, and customs backlogs â€” adding 1-3 days.",
+    "is_sunday_in_between":  "Whether a Sunday falls within the shipment window. Sunday logistics operations run at reduced capacity in most countries â€” a known delay multiplier.",
 }
 
 # ---------------------------------------------------------------------------
@@ -67,10 +67,10 @@ def _node_features(
     nodes: List[str],
 ) -> Tuple[np.ndarray, List[str]]:
     """
-    Build an (N × 13) float32 feature matrix for the supplied node list
+    Build an (N Ã— 13) float32 feature matrix for the supplied node list
     using the same defaults as delay_model.predict_delay_proba.
 
-    Returns (X, valid_nodes) — rows in X map 1-to-1 to valid_nodes.
+    Returns (X, valid_nodes) â€” rows in X map 1-to-1 to valid_nodes.
     """
     rows: List[np.ndarray] = []
     valid: List[str] = []
@@ -84,7 +84,7 @@ def _node_features(
             dists   = [d.get("distance_m",     500_000) for _, _, d in in_edges]
             weights = [d.get("avg_weight_kg",   200)    for _, _, d in in_edges]
             avg_dist   = float(np.mean(dists))
-            avg_weight = float(np.mean(weights)) * 1000   # kg → g
+            avg_weight = float(np.mean(weights)) * 1000   # kg â†’ g
         else:
             tier = G.nodes[node].get("tier", 3)
             avg_dist   = 500_000 - tier * 50_000
@@ -119,6 +119,26 @@ def _node_features(
 # Core SHAP computation
 # ---------------------------------------------------------------------------
 
+def _force_xgb_cpu_predictor(model: Any) -> None:
+    """
+    Keep SHAP inference on CPU to avoid XGBoost CUDA/CPU mismatch warnings.
+    """
+    try:
+        module_name = model.__class__.__module__.lower()
+    except Exception:
+        module_name = ""
+    if "xgboost" not in module_name:
+        return
+    try:
+        model.set_params(device="cpu")
+    except Exception:
+        pass
+    try:
+        booster = model.get_booster()
+        booster.set_param({"device": "cpu"})
+    except Exception:
+        pass
+
 def compute_shap(
     artifact:  Dict[str, Any],
     risk_df:   pd.DataFrame,
@@ -143,13 +163,14 @@ def compute_shap(
     try:
         import shap
     except ImportError:
-        print("  [shap_explain] shap not installed — skipping explainability")
+        print("  [shap_explain] shap not installed â€” skipping explainability")
         return {}
 
     if risk_df.empty:
         return {}
 
     model    = artifact["model"]
+    _force_xgb_cpu_predictor(model)
     features = artifact["features"]   # ordered list of 13 feature names
 
     # Select top-N nodes by risk score
@@ -164,12 +185,12 @@ def compute_shap(
         explainer   = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(X)
 
-        # RandomForest returns list[array] (one per class) — take class-1
+        # RandomForest returns list[array] (one per class) â€” take class-1
         if isinstance(shap_values, list):
             shap_values = shap_values[1]
 
     except Exception as e:
-        print(f"  [shap_explain] TreeExplainer failed: {e} — using KernelExplainer")
+        print(f"  [shap_explain] TreeExplainer failed: {e} â€” using KernelExplainer")
         try:
             bg = shap.kmeans(X, min(10, X.shape[0]))
             explainer   = shap.KernelExplainer(model.predict_proba, bg)
@@ -248,7 +269,7 @@ def shap_bar_figure(
         paper_bgcolor="#0a0e1a",
         plot_bgcolor="#0a0e1a",
         xaxis=dict(
-            title="Mean |SHAP value| — impact on delay probability",
+            title="Mean |SHAP value| â€” impact on delay probability",
             color="#94a3b8", gridcolor="#1e293b",
             title_font=dict(size=12),
         ),
@@ -326,7 +347,7 @@ def shap_waterfall_figure(
 
     fig.update_layout(
         title=dict(
-            text=f"Delay Risk Breakdown — What is driving delay probability for <b>{node_name}</b>",
+            text=f"Delay Risk Breakdown â€” What is driving delay probability for <b>{node_name}</b>",
             font=dict(color="#e2e8f0", size=14, family="Inter"),
             x=0,
         ),
@@ -417,17 +438,17 @@ if __name__ == "__main__":
     from delay_model import load_or_train
     from graph_builder import build_graph
 
-    print("Loading model …")
+    print("Loading model â€¦")
     artifact = load_or_train()
 
-    print("Building graph …")
+    print("Building graph â€¦")
     G = build_graph()
 
     # Mock a tiny risk_df
     nodes = list(G.nodes())[:10]
     risk_df = pd.DataFrame({"node": nodes, "risk_score": [0.9 - i*0.05 for i in range(len(nodes))]})
 
-    print("Computing SHAP …")
+    print("Computing SHAP â€¦")
     results = compute_shap(artifact, risk_df, G, top_n=5)
 
     if results:
@@ -436,3 +457,4 @@ if __name__ == "__main__":
         print(shap_to_text(results[top_node], top_node))
     else:
         print("No SHAP results (shap may not be installed).")
+

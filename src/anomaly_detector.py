@@ -150,6 +150,29 @@ def load_or_train_anomaly(
     return _train_isolation_forest(order_path, model_path)
 
 
+def load_anomaly_model(
+    model_path: Path = ANOMALY_PATH,
+) -> Dict[str, Any]:
+    """
+    Load an already-trained anomaly artifact.
+    Raises FileNotFoundError when model is absent.
+    """
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Anomaly model not found at {model_path}. "
+            "Train it first with: python train_models.py"
+        )
+
+    artifact = joblib.load(model_path)
+    required = {"model", "scaler", "features", "feat_df"}
+    missing = sorted(required - set(artifact.keys()))
+    if missing:
+        raise ValueError(
+            f"Invalid anomaly model artifact at {model_path}: missing {', '.join(missing)}"
+        )
+    return artifact
+
+
 # ---------------------------------------------------------------------------
 # Score all graph nodes
 # ---------------------------------------------------------------------------

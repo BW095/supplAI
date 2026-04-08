@@ -3,7 +3,7 @@ supply_chain_agent.py
 ----------------------
 Agentic AI loop for autonomous supply chain decision-making.
 
-The agent uses OpenAI's function calling API to:
+The agent uses Groq's tool-calling API to:
   1. Assess disruption scope (get_top_risks, query_node_risk)
   2. Identify what materials / goods are choked (get_material_risks)
   3. Check for pre-existing anomalies (get_anomaly_alerts)
@@ -32,6 +32,17 @@ try:
 except ImportError:
     pass
 
+GEMINI_KEY_ENV_VARS = ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY")
+GROQ_KEY_ENV_VARS = ("GROQ_API_KEY",)
+
+
+def _resolve_env_key(env_names: tuple[str, ...]) -> str:
+    for env_name in env_names:
+        candidate = os.getenv(env_name, "").strip()
+        if candidate and not candidate.lower().startswith("your_"):
+            return candidate
+    return ""
+
 
 # ---------------------------------------------------------------------------
 # Agent class
@@ -56,7 +67,7 @@ class SupplyChainAgent:
         self.material_summary = material_summary
         self.anomaly_df = anomaly_df
         self.disruption_info = disruption_info
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+        self.api_key = api_key or _resolve_env_key(GROQ_KEY_ENV_VARS)
 
         # Mutable state updated by tool calls
         self.action_log: list[dict] = []
@@ -245,18 +256,19 @@ class SupplyChainAgent:
     # ------------------------------------------------------------------
 
     def run(self, max_turns: int = 12) -> dict:
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
-        openai_key = self.api_key   # already resolved from OPENAI_API_KEY in __init__
+        gemini_key = _resolve_env_key(GEMINI_KEY_ENV_VARS)
+        groq_key = self.api_key
 
-        # Try OpenAI function-calling agent first
-        if openai_key and openai_key.strip() not in ("", "your_openai_api_key_here"):
+        # Try Groq tool-calling agent first
+        if groq_key and groq_key.strip() not in ("", "your_groq_api_key_here"):
             try:
-                return self._run_openai(max_turns)
+                return self._run_groq(max_turns)
             except Exception as exc:
-                print(f"  [agent] OpenAI agent error: {exc} — trying Gemini-enhanced fallback")
+                print(f"  [agent] Groq agent error: {exc} — trying deterministic fallback")
 
-        # Run deterministic tools + enrich with a single Gemini reasoning call
-        result = self._run_fallback(source_tag="gemini-enhanced")
+        # Run deterministic tools + optionally enrich with a single Gemini reasoning call.
+        source_tag = "gemini-enhanced" if (gemini_key and gemini_key.strip()) else "groq-unavailable"
+        result = self._run_fallback(source_tag=source_tag)
         if gemini_key and gemini_key.strip():
             self._enrich_with_gemini(result, gemini_key)
         return result
@@ -314,14 +326,14 @@ class SupplyChainAgent:
             print(f"  [agent] Gemini enrichment failed: {e} — keeping deterministic thoughts")
 
     # ------------------------------------------------------------------
-    # OpenAI function-calling loop
+    # Groq tool-calling loop
     # ------------------------------------------------------------------
 
-    def _run_openai(self, max_turns: int) -> dict:
+    def _run_groq(self, max_turns: int) -> dict:
         import json
-        from openai import OpenAI
+        from groq import Groq
 
-        client = OpenAI(api_key=self.api_key)
+        client = Groq(api_key=self.api_key)
 
         event      = self.disruption_info.get("event_text", "Unknown disruption")
         severity   = self.disruption_info.get("severity", "medium")
@@ -474,14 +486,24 @@ class SupplyChainAgent:
         while step < max_turns:
             step += 1
 
-            response = client.chat.completions.create(
-                model       = "gpt-4o-mini",
-                messages    = messages,
-                tools       = tools,
-                tool_choice = "auto",
-                temperature = 0.2,
-                max_tokens  = 2048,
-            )
+            req = {
+                "model": "openai/gpt-oss-120b",
+                "messages": messages,
+                "tools": tools,
+                "tool_choice": "auto",
+                "temperature": 0.2,
+                "top_p": 1,
+                "max_completion_tokens": 4096,
+                "reasoning_effort": "medium",
+                "stream": False,
+            }
+            try:
+                response = client.chat.completions.create(**req)
+            except TypeError:
+                # Backward compatibility for older Groq SDKs.
+                req.pop("reasoning_effort", None)
+                req["max_tokens"] = req.pop("max_completion_tokens")
+                response = client.chat.completions.create(**req)
 
             msg = response.choices[0].message
             messages.append(msg)
@@ -504,10 +526,18 @@ class SupplyChainAgent:
 
             # Execute all tool calls in this turn
             for tc in tool_calls_raw:
-                tool_name = tc.function.name
+                fn_obj = getattr(tc, "function", None)
+                tool_name = getattr(fn_obj, "name", "") if fn_obj is not None else ""
+                raw_args = getattr(fn_obj, "arguments", "{}") if fn_obj is not None else "{}"
+
+                if not tool_name:
+                    continue
+
                 try:
-                    tool_args = json.loads(tc.function.arguments)
+                    tool_args = json.loads(raw_args) if raw_args else {}
                 except Exception:
+                    tool_args = {}
+                if not isinstance(tool_args, dict):
                     tool_args = {}
 
                 print(f"  [agent] Step {step}: {tool_name}({list(tool_args.keys())})")
@@ -536,7 +566,7 @@ class SupplyChainAgent:
                 break
 
         elapsed = round(time.time() - start, 1)
-        return self._build_result(elapsed, source="openai-agent")
+        return self._build_result(elapsed, source="groq-agent")
 
     # ------------------------------------------------------------------
     # Deterministic fallback agent (no API key needed)

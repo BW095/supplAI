@@ -51,6 +51,28 @@ SEVERE_OWM_IDS = {
 }
 
 EARTHQUAKE_MIN_MAG = 5.5
+OPENWEATHER_KEY_ENV_VARS = ("OPENWEATHER_API_KEY", "OPENWEATHERMAP_API_KEY", "OWM_API_KEY")
+
+# Open-Meteo weather codes that indicate significant disruption risk.
+OPEN_METEO_SEVERE_CODES = {65, 75, 82, 86, 95, 96, 99}
+OPEN_METEO_MODERATE_CODES = {63, 66, 67, 73, 81, 85}
+OPEN_METEO_CODE_LABELS = {
+    63: "moderate rain",
+    65: "heavy rain",
+    66: "freezing rain",
+    67: "heavy freezing rain",
+    73: "moderate snowfall",
+    75: "heavy snowfall",
+    81: "rain showers",
+    82: "violent rain showers",
+    85: "snow showers",
+    86: "heavy snow showers",
+    95: "thunderstorm",
+    96: "thunderstorm with hail",
+    99: "severe thunderstorm with hail",
+}
+OPEN_METEO_HEAVY_PRECIP_MM = 7.0
+OPEN_METEO_EXTREME_PRECIP_MM = 15.0
 
 
 # ---------------------------------------------------------------------------
@@ -61,12 +83,39 @@ def _load_cities(supply_path: Path = SUPPLY_PATH) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+def _resolve_openweather_key(explicit_key: Optional[str] = None) -> str:
+    if explicit_key and explicit_key.strip():
+        return explicit_key.strip()
+
+    for env_name in OPENWEATHER_KEY_ENV_VARS:
+        candidate = os.getenv(env_name, "").strip()
+        if candidate and not candidate.lower().startswith("your_"):
+            return candidate
+    return ""
+
+
+# ---------------------------------------------------------------------------
 # OpenWeatherMap: current weather for a single location
 # ---------------------------------------------------------------------------
 def _fetch_owm(lat: float, lon: float, api_key: str, timeout: int = 6) -> Optional[Dict]:
     url = (
         f"https://api.openweathermap.org/data/2.5/weather"
         f"?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+def _fetch_open_meteo(lat: float, lon: float, timeout: int = 6) -> Optional[Dict]:
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}"
+        "&current=weather_code,wind_speed_10m,precipitation,rain,showers,snowfall"
+        "&forecast_days=1&timezone=UTC"
     )
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
@@ -174,6 +223,90 @@ def check_weather_events(
 
 
 # ---------------------------------------------------------------------------
+def check_weather_events_open_meteo(
+    cities_df: pd.DataFrame,
+    sample_every: int = 4,
+) -> List[Dict[str, Any]]:
+    """
+    No-key fallback weather monitor using Open-Meteo public API.
+    """
+    events = []
+    city_list = cities_df.reset_index(drop=True)
+    severe_wind_kmh = WIND_SEVERE_MS * 3.6
+    extreme_wind_kmh = WIND_EXTREME_MS * 3.6
+
+    for i, row in city_list.iterrows():
+        if i % sample_every != 0:
+            continue
+
+        lat, lon = float(row["lat"]), float(row["lon"])
+        data = _fetch_open_meteo(lat, lon)
+        if not data:
+            continue
+
+        current = data.get("current", {})
+        if not current:
+            continue
+
+        weather_code = int(current.get("weather_code", 0) or 0)
+        wind_kmh = float(current.get("wind_speed_10m", 0.0) or 0.0)
+        precip_mm = max(
+            float(current.get("precipitation", 0.0) or 0.0),
+            float(current.get("rain", 0.0) or 0.0)
+            + float(current.get("showers", 0.0) or 0.0)
+            + float(current.get("snowfall", 0.0) or 0.0),
+        )
+
+        is_severe_code = weather_code in OPEN_METEO_SEVERE_CODES
+        is_moderate_code = weather_code in OPEN_METEO_MODERATE_CODES
+        is_severe_wind = wind_kmh >= severe_wind_kmh
+        is_extreme_wind = wind_kmh >= extreme_wind_kmh
+        is_heavy_precip = precip_mm >= OPEN_METEO_HEAVY_PRECIP_MM
+        is_extreme_precip = precip_mm >= OPEN_METEO_EXTREME_PRECIP_MM
+
+        if not (is_severe_code or is_moderate_code or is_severe_wind or is_heavy_precip):
+            continue
+
+        city_name = row.get("city_name", "Unknown")
+        country = row.get("country", "Unknown")
+        product = row.get("product_category", "General")
+        city_id = row.get("city_id", str(i))
+        description = OPEN_METEO_CODE_LABELS.get(weather_code, "adverse weather")
+
+        if is_severe_code or is_extreme_wind or is_extreme_precip:
+            severity = "high"
+        elif is_moderate_code or is_severe_wind or is_heavy_precip:
+            severity = "medium"
+        else:
+            severity = "low"
+
+        conditions = [description]
+        if is_severe_wind:
+            conditions.append(f"{wind_kmh:.0f} km/h winds")
+        if is_heavy_precip:
+            conditions.append(f"{precip_mm:.1f} mm precipitation")
+        condition_str = ", ".join(conditions)
+
+        events.append({
+            "event_text": f"{description.title()} in {city_name}, {country} disrupting {product} supply chain",
+            "affected_nodes": [city_id],
+            "severity": severity,
+            "category": "natural_disaster",
+            "keywords_hit": [country.lower(), product.lower()],
+            "country_hit": [country],
+            "product_hit": [product],
+            "title": f"Weather alert: {condition_str} at {city_name}",
+            "source_headline": f"Open-Meteo: {condition_str} at {city_name} ({lat:.1f}°N, {lon:.1f}°E)",
+            "source": "Open-Meteo",
+            "wind_kmh": round(wind_kmh, 1),
+            "precip_mm": round(precip_mm, 1),
+            "weather_code": weather_code,
+        })
+
+    return events
+
+
+# ---------------------------------------------------------------------------
 # Check USGS earthquake feed, map quakes to nearby supply nodes
 # ---------------------------------------------------------------------------
 def check_earthquake_events(
@@ -247,7 +380,7 @@ def get_weather_disruptions(
     Full pipeline: load cities → check OWM weather → check USGS earthquakes.
     Returns list of disruption dicts sorted by severity.
     """
-    effective_key = api_key or os.getenv("OPENWEATHER_API_KEY", "")
+    effective_key = _resolve_openweather_key(api_key)
 
     print("  [weather_monitor] Loading city data …")
     cities_df = _load_cities(supply_path)
@@ -264,7 +397,9 @@ def get_weather_disruptions(
         weather_events = check_weather_events(cities_df, effective_key)
         print(f"  [weather_monitor] {len(weather_events)} weather alert(s) detected")
     else:
-        print("  [weather_monitor] No OPENWEATHER_API_KEY — skipping weather check")
+        print("  [weather_monitor] No OpenWeather API key — using Open-Meteo fallback")
+        weather_events = check_weather_events_open_meteo(cities_df)
+        print(f"  [weather_monitor] {len(weather_events)} weather alert(s) detected (Open-Meteo)")
 
     all_events = quake_events + weather_events
     priority   = {"high": 0, "medium": 1, "low": 2}

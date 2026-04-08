@@ -32,6 +32,8 @@ try:
 except ImportError:
     pass
 
+GEMINI_KEY_ENV_VARS = ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY")
+
 
 # ---------------------------------------------------------------------------
 # Country / city mapping  (City_1–City_70 original + City_71–City_159 new)
@@ -781,8 +783,14 @@ def _llm_parse(text: str) -> dict | None:
     Call Gemini to extract structured disruption data.
     Returns None on any failure (missing key, rate limit, parse error).
     """
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key or api_key in ("your_gemini_api_key_here", ""):
+    api_key = ""
+    for env_name in GEMINI_KEY_ENV_VARS:
+        candidate = os.getenv(env_name, "").strip()
+        if candidate and not candidate.lower().startswith("your_"):
+            api_key = candidate
+            break
+
+    if not api_key:
         return None
 
     try:

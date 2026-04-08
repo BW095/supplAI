@@ -36,7 +36,7 @@ from risk_scoring     import score_nodes, compute_centrality
 from reroute          import find_alternates, format_path
 from llm_brief        import generate_brief
 from shap_explain     import compute_shap, shap_bar_figure, shap_waterfall_figure, shap_to_text, FEATURE_DESCRIPTIONS, FEATURE_LABELS
-from anomaly_detector import load_or_train_anomaly, score_anomalies, anomaly_bar_figure
+from anomaly_detector import load_anomaly_model, score_anomalies, anomaly_bar_figure
 from material_flow    import (
     get_edge_material, get_node_material_label,
     get_disrupted_materials, summarise_materials_at_risk,
@@ -672,10 +672,10 @@ def _load_graph():
 def _load_supply():
     return load_supply_metadata()
 
-@st.cache_resource(show_spinner="🧠 Loading / training delay model …")
+@st.cache_resource(show_spinner="🧠 Loading pretrained delay model …")
 def _load_delay_model():
-    from delay_model import load_or_train
-    return load_or_train()
+    from delay_model import load_model
+    return load_model()
 
 @st.cache_data(show_spinner=False)
 def _compute_centrality(_G):
@@ -683,7 +683,7 @@ def _compute_centrality(_G):
 
 @st.cache_resource(show_spinner="🔍 Loading anomaly detection model …")
 def _load_anomaly_model():
-    return load_or_train_anomaly()
+    return load_anomaly_model()
 
 
 # ---------------------------------------------------------------------------
@@ -1169,14 +1169,14 @@ def render_sidebar():
                                  help="Automatically re-fetch news & weather every 30 minutes")
         col_n, col_w = st.columns(2)
         with col_n:
-            if st.button("🌍 News", use_container_width=True, help="Fetch latest geopolitical news"):
+            if st.button("🌍 News", width="stretch", help="Fetch latest geopolitical news"):
                 with st.spinner("Fetching news …"):
                     news_events = get_live_disruptions()
                 weather_events = st.session_state.get("weather_events", [])
                 st.session_state["live_events"] = news_events + weather_events
                 st.rerun()
         with col_w:
-            if st.button("🌩️ Weather", use_container_width=True, help="Check live weather & earthquakes"):
+            if st.button("🌩️ Weather", width="stretch", help="Check live weather & earthquakes"):
                 with st.spinner("Checking weather & quakes …"):
                     weather_events = get_weather_disruptions()
                 news_events = st.session_state.get("live_events", [])
@@ -1189,9 +1189,9 @@ def render_sidebar():
             st.markdown(f"**{len(live_events)} disruption(s) detected:**")
             for i, evt in enumerate(live_events):
                 sev_icon = {"high": "🔴", "medium": "🟠", "low": "🟡"}.get(evt["severity"], "⚪")
-                src_icon = {"USGS": "🌋", "OpenWeatherMap": "🌩️"}.get(evt.get("source",""), "📰")
+                src_icon = {"USGS": "🌋", "OpenWeatherMap": "🌩️", "Open-Meteo": "🌩️"}.get(evt.get("source",""), "📰")
                 label = f"{sev_icon}{src_icon} {evt['title'][:40]}{'…' if len(evt['title']) > 40 else ''}"
-                if st.button(label, key=f"live_evt_{i}", use_container_width=True):
+                if st.button(label, key=f"live_evt_{i}", width="stretch"):
                     st.session_state["event_text"] = evt["event_text"]
                     st.rerun()
         elif live_events is not None:
@@ -1222,7 +1222,7 @@ def render_sidebar():
         st.markdown("---")
 
         # Analyse button
-        run_analysis = st.button("🚀 Analyse Disruption", type="primary", use_container_width=True)
+        run_analysis = st.button("🚀 Analyse Disruption", type="primary", width="stretch")
 
         st.markdown("---")
         st.markdown("""
@@ -1488,6 +1488,9 @@ def main():
         with st.spinner("📊 Scoring risk nodes …"):
             try:
                 delay_artifact = _load_delay_model()
+            except FileNotFoundError as model_err:
+                st.warning(f"{model_err}")
+                delay_artifact = None
             except Exception:
                 delay_artifact = None
             risk_df = score_nodes(G, cascade_result, centrality, delay_artifact)
@@ -1521,6 +1524,9 @@ def main():
             try:
                 anomaly_artifact = _load_anomaly_model()
                 anomaly_df = score_anomalies(anomaly_artifact, G, supply_df)
+            except FileNotFoundError as model_err:
+                st.warning(f"{model_err}")
+                anomaly_df = pd.DataFrame()
             except Exception:
                 anomaly_df = pd.DataFrame()
 
@@ -1816,7 +1822,7 @@ def main():
                 seed_nodes=disruption_info["affected_nodes"],
             )
             if anim_fig:
-                st.plotly_chart(anim_fig, use_container_width=True)
+                st.plotly_chart(anim_fig, width="stretch")
             else:
                 st.info("Not enough cascade data to animate.")
 
@@ -1835,7 +1841,7 @@ def main():
                 seed_nodes=disruption_info["affected_nodes"],
                 color_by="tier",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         elif view_mode == "🎯 Disruption Focus":
             st.markdown(
@@ -1850,7 +1856,7 @@ def main():
                 G, cascade_result, risk_df, reroute_suggestions,
                 seed_nodes=set(disruption_info["affected_nodes"]),
             )
-            st.plotly_chart(focus_fig, use_container_width=True)
+            st.plotly_chart(focus_fig, width="stretch")
 
         else:
             fig = build_plotly_graph(
@@ -1858,7 +1864,7 @@ def main():
                 seed_nodes=disruption_info["affected_nodes"],
                 color_by="risk",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # Depth breakdown
         st.markdown("#### Cascade Depth Breakdown")
@@ -1870,7 +1876,7 @@ def main():
             )
             col_a, col_b = st.columns([1, 2])
             with col_a:
-                st.dataframe(depth_df, hide_index=True, use_container_width=True)
+                st.dataframe(depth_df, hide_index=True, width="stretch")
             with col_b:
                 # Simple bar chart using plotly
                 bar_fig = go.Figure(go.Bar(
@@ -1889,7 +1895,7 @@ def main():
                     font=dict(color="#e2e8f0", family="Space Grotesk, Inter, sans-serif"),
                     height=280, margin=dict(t=20, b=30, l=20, r=20),
                 )
-                st.plotly_chart(bar_fig, use_container_width=True)
+                st.plotly_chart(bar_fig, width="stretch")
 
     # ==================================================================
     # TAB 2 — Risk Analysis
@@ -2016,7 +2022,7 @@ def main():
                 showlegend=False,
                 bargap=0.3,
             )
-            st.plotly_chart(tier_fig, use_container_width=True)
+            st.plotly_chart(tier_fig, width="stretch")
 
             st.markdown("---")
 
@@ -2044,13 +2050,13 @@ def main():
                     data=export_df.to_csv(index=False),
                     file_name="supplai_risk_report.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             st.dataframe(
                 export_df,
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 height=400,
             )
 
@@ -2100,14 +2106,14 @@ def main():
                     font=dict(color="#e2e8f0", family="Space Grotesk, Inter, sans-serif"),
                     height=300, margin=dict(t=15, b=100, l=20, r=20),
                 )
-                st.plotly_chart(mat_fig, use_container_width=True)
+                st.plotly_chart(mat_fig, width="stretch")
 
                 # Detail table — expand to see specific items and example routes
                 with st.expander("🔍 View full material flow breakdown"):
                     st.dataframe(
                         mat_summary,
                         hide_index=True,
-                        use_container_width=True,
+                        width="stretch",
                         column_config={
                             "Material Flow":      st.column_config.TextColumn("Material Type", width="medium"),
                             "Specific Items":     st.column_config.TextColumn("Specific Items at Risk", width="large"),
@@ -2133,7 +2139,7 @@ def main():
                             "from_tier":    "From Tier",
                             "to_tier":      "To Tier",
                         })
-                        st.dataframe(display_edge, hide_index=True, use_container_width=True, height=300)
+                        st.dataframe(display_edge, hide_index=True, width="stretch", height=300)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2163,7 +2169,7 @@ def main():
                 height=260, margin=dict(t=10, b=30, l=20, r=20),
                 bargap=0.1,
             )
-            st.plotly_chart(risk_fig, use_container_width=True)
+            st.plotly_chart(risk_fig, width="stretch")
 
     # ==================================================================
     # TAB 3 — Rerouting
@@ -2459,8 +2465,8 @@ def main():
             source_label = "📋 Template Brief"
         elif "gemini" in _brief_source:
             source_label = "🤖 Generated by Gemini 2.5 Flash"
-        elif "gpt" in _brief_source:
-            source_label = "🤖 Generated by GPT-4o Mini"
+        elif "groq" in _brief_source:
+            source_label = "🤖 Generated by Groq GPT-OSS 120B"
         else:
             source_label = f"🤖 Generated by AI"
         confidence = brief.get("confidence", "Medium")
@@ -2612,7 +2618,7 @@ def main():
                 unsafe_allow_html=True,
             )
             bar_fig = shap_bar_figure(shap_results)
-            st.plotly_chart(bar_fig, use_container_width=True)
+            st.plotly_chart(bar_fig, width="stretch")
 
             st.markdown("---")
 
@@ -2658,7 +2664,7 @@ def main():
                 shap_results[selected_node],
                 node_name=f"{sel_name}, {sel_country}",
             )
-            st.plotly_chart(waterfall_fig, use_container_width=True)
+            st.plotly_chart(waterfall_fig, width="stretch")
 
 
             # ── Key driver cards ──────────────────────────────────────────
@@ -2765,7 +2771,7 @@ def main():
                 """, unsafe_allow_html=True)
 
             # Bar chart
-            st.plotly_chart(anomaly_bar_figure(anomaly_df, top_n=20), use_container_width=True)
+            st.plotly_chart(anomaly_bar_figure(anomaly_df, top_n=20), width="stretch")
 
             # Table
             st.markdown("#### Anomalous Nodes Detail")
@@ -2779,7 +2785,7 @@ def main():
                 "anomaly_z":     "Z-Score",
                 "anomaly_level": "Level",
             })
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            st.dataframe(display_df, width="stretch", hide_index=True)
 
     # ==================================================================
     # TAB 7 — AI Agent
@@ -2801,11 +2807,11 @@ def main():
             source          = agent_result.get("source", "template-agent")
 
             # ── Status banner ───────────────────────────────────────────
-            if source == "openai-agent":
-                source_label = "🤖 GPT-4o Mini Autonomous Agent"
+            if source == "groq-agent":
+                source_label = "🤖 Groq Autonomous Agent (GPT-OSS 120B)"
             elif source == "gemini-enhanced":
                 source_label = "🤖 SupplAI Autonomous Agent (Gemini-Enhanced Reasoning)"
-            elif source in ("gemini-unavailable", "openai-unavailable"):
+            elif source in ("gemini-unavailable", "groq-unavailable"):
                 source_label = "📋 SupplAI Autonomous Agent (AI reasoning temporarily unavailable)"
             else:
                 source_label = "🤖 SupplAI Autonomous Agent"
@@ -3065,7 +3071,7 @@ def main():
                     if st.button(
                         f"✅ APPROVE ALL AGENT DECISIONS ({len(approved_routes) + len(flagged)})",
                         type="primary",
-                        use_container_width=True,
+                        width="stretch",
                         key="approve_agent",
                     ):
                         st.session_state[approval_key] = True
@@ -3073,7 +3079,7 @@ def main():
                 with col_reject:
                     if st.button(
                         "❌ REJECT & RESET",
-                        use_container_width=True,
+                        width="stretch",
                         key="reject_agent",
                     ):
                         st.warning("Agent decisions rejected. Re-run analysis to generate a new plan.")

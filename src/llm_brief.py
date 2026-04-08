@@ -16,7 +16,7 @@ The brief contains:
 """
 
 import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 import pandas as pd
 
@@ -26,6 +26,20 @@ try:
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 except ImportError:
     pass  # python-dotenv not installed; rely on system env vars
+
+GEMINI_KEY_ENV_VARS = ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY")
+GROQ_KEY_ENV_VARS = ("GROQ_API_KEY",)
+
+
+def _resolve_api_key(explicit_key: Optional[str], env_names: Tuple[str, ...]) -> str:
+    if explicit_key and explicit_key.strip():
+        return explicit_key.strip()
+
+    for env_name in env_names:
+        candidate = os.getenv(env_name, "").strip()
+        if candidate and not candidate.lower().startswith("your_"):
+            return candidate
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -200,9 +214,9 @@ def generate_brief(
     dict with keys: executive_summary, top_risks, immediate_actions,
                     confidence, estimated_impact, timeline, source
     """
-    # Resolve API key — try Gemini first, then OpenAI
-    gemini_key = api_key or os.getenv("GEMINI_API_KEY", "")
-    openai_key = os.getenv("OPENAI_API_KEY", "")
+    # Resolve API key — try Gemini first, then Groq
+    gemini_key = _resolve_api_key(api_key, GEMINI_KEY_ENV_VARS)
+    groq_key = _resolve_api_key(None, GROQ_KEY_ENV_VARS)
 
     # Try Gemini (single call — reliable even on free tier)
     if gemini_key:
@@ -237,41 +251,52 @@ def generate_brief(
             else:
                 raise ValueError("No JSON in Gemini response")
         except Exception as e:
-            print(f"  [llm_brief] Gemini error: {e} — trying OpenAI")
+            print(f"  [llm_brief] Gemini error: {e} — trying Groq")
 
-    # Try OpenAI as fallback
-    if openai_key:
+    # Try Groq as fallback
+    if groq_key:
         try:
-            from openai import OpenAI
+            from groq import Groq
             import json
             import re
 
-            client = OpenAI(api_key=openai_key)
+            client = Groq(api_key=groq_key)
             prompt = _build_prompt(disruption_info, risk_df, reroute_suggestions, shap_context=shap_context)
 
-            print("  [llm_brief] Calling GPT-4o Mini …")
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
+            print("  [llm_brief] Calling Groq GPT-OSS 120B …")
+            req = {
+                "model": "openai/gpt-oss-120b",
+                "messages": [
                     {"role": "system", "content": "You are a senior supply chain risk analyst. Return only valid JSON."},
                     {"role": "user",   "content": prompt},
                 ],
-                temperature=0.3,
-                max_tokens=2048,
-            )
-            raw_text = response.choices[0].message.content.strip()
+                "temperature": 0.3,
+                "top_p": 1,
+                "max_completion_tokens": 4096,
+                "reasoning_effort": "medium",
+                "stream": False,
+            }
+            try:
+                response = client.chat.completions.create(**req)
+            except TypeError:
+                # Backward compatibility for older Groq SDKs.
+                req.pop("reasoning_effort", None)
+                req["max_tokens"] = req.pop("max_completion_tokens")
+                response = client.chat.completions.create(**req)
+            raw_text = ((response.choices[0].message.content if response.choices else "") or "").strip()
             json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
             if json_match:
                 brief = json.loads(json_match.group(0))
-                brief["source"] = "gpt-4o-mini"
+                brief["source"] = "groq-openai-gpt-oss-120b"
                 if shap_context:
                     brief["shap_explanation"] = shap_context
-                print("  [llm_brief] GPT-4o Mini brief generated successfully")
+                print("  [llm_brief] Groq brief generated successfully")
                 return brief
+            raise ValueError("No JSON in Groq response")
         except Exception as e:
-            print(f"  [llm_brief] OpenAI error: {e} — falling back to template")
+            print(f"  [llm_brief] Groq error: {e} — falling back to template")
 
-    print("  [llm_brief] No working AI API — using template brief")
+    print("  [llm_brief] No working AI API key — using template brief")
     brief = template_brief(disruption_info, risk_df, reroute_suggestions)
     if shap_context:
         brief["shap_explanation"] = shap_context

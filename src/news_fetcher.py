@@ -12,7 +12,7 @@ import json
 import re
 import os
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import feedparser
 
@@ -50,6 +50,8 @@ FILTER_KEYWORDS = {
     "energy", "fuel", "mineral", "rare earth", "export", "import",
     "border", "attack", "threat", "india", "pakistan", "israel", "gaza",
 }
+
+GEMINI_KEY_ENV_VARS = ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY")
 
 # ---------------------------------------------------------------------------
 # Gemini prompt
@@ -106,6 +108,93 @@ def fetch_headlines(max_per_feed: int = 15) -> List[Dict[str, str]]:
 
 
 # ---------------------------------------------------------------------------
+# API-key resolution and offline extraction fallback
+# ---------------------------------------------------------------------------
+def _resolve_gemini_key(explicit_key: Optional[str] = None) -> str:
+    if explicit_key and explicit_key.strip():
+        return explicit_key.strip()
+
+    for env_name in GEMINI_KEY_ENV_VARS:
+        candidate = os.getenv(env_name, "").strip()
+        if candidate and not candidate.lower().startswith("your_"):
+            return candidate
+    return ""
+
+
+def _extract_disruptions_offline(
+    headlines: List[Dict[str, str]],
+    max_events: int = 4,
+) -> List[Dict[str, Any]]:
+    """
+    Offline fallback: parse headlines with the keyword-based disruption parser.
+    Returns an event schema compatible with Gemini extraction output.
+    """
+    if not headlines:
+        return []
+
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    from disruption_input import parse_disruption
+
+    severity_rank = {"high": 0, "medium": 1, "low": 2}
+    parsed_events: List[Dict[str, Any]] = []
+    seen_signatures = set()
+
+    for h in headlines[:30]:
+        title = (h.get("title") or "").strip()
+        if not title:
+            continue
+
+        parsed = parse_disruption(title)
+        countries = parsed.get("country_hit", [])
+        sectors = parsed.get("product_hit", [])
+        keywords = parsed.get("keywords_hit", [])
+
+        # Skip weak generic matches when we have better candidates.
+        if not countries and not sectors and keywords == ["general"]:
+            continue
+
+        signature = (
+            parsed.get("severity", "medium"),
+            parsed.get("category", "other"),
+            tuple(sorted(countries)),
+            tuple(sorted(sectors)),
+        )
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+
+        parsed_events.append({
+            "title": title,
+            "affected_countries": countries,
+            "affected_sectors": sectors,
+            "severity": parsed.get("severity", "medium"),
+            "category": parsed.get("category", "other"),
+            "event_text": parsed.get("event_text", title),
+            "source_headline": f"[{h.get('source', 'Unknown')}] {title}",
+        })
+
+    if not parsed_events:
+        # Last resort: keep the first few headlines as medium severity events.
+        for h in headlines[:max_events]:
+            title = (h.get("title") or "").strip()
+            if not title:
+                continue
+            parsed_events.append({
+                "title": title,
+                "affected_countries": [],
+                "affected_sectors": [],
+                "severity": "medium",
+                "category": "other",
+                "event_text": title,
+                "source_headline": f"[{h.get('source', 'Unknown')}] {title}",
+            })
+
+    parsed_events.sort(key=lambda e: severity_rank.get(e.get("severity", "medium"), 1))
+    return parsed_events[:max_events]
+
+
+# ---------------------------------------------------------------------------
 # Extract disruption events using Gemini
 # ---------------------------------------------------------------------------
 def extract_disruptions_with_gemini(
@@ -117,10 +206,12 @@ def extract_disruptions_with_gemini(
 
     Returns list of disruption dicts compatible with parse_disruption() output.
     """
-    effective_key = api_key or os.getenv("GEMINI_API_KEY", "")
+    effective_key = _resolve_gemini_key(api_key)
     if not effective_key:
-        print("  [news_fetcher] No Gemini API key — cannot extract disruptions")
-        return []
+        print("  [news_fetcher] No Gemini API key — using keyword extraction fallback")
+        fallback_events = _extract_disruptions_offline(headlines)
+        print(f"  [news_fetcher] Fallback extracted {len(fallback_events)} disruption event(s)")
+        return fallback_events
 
     if not headlines:
         return []
@@ -161,8 +252,10 @@ def extract_disruptions_with_gemini(
         return gemini_events
 
     except Exception as e:
-        print(f"  [news_fetcher] Gemini extraction failed: {e}")
-        return []
+        print(f"  [news_fetcher] Gemini extraction failed: {e} — using keyword fallback")
+        fallback_events = _extract_disruptions_offline(headlines)
+        print(f"  [news_fetcher] Fallback extracted {len(fallback_events)} disruption event(s)")
+        return fallback_events
 
 
 # ---------------------------------------------------------------------------
