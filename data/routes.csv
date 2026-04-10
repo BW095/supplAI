@@ -1,0 +1,241 @@
+source,destination,source_city,dest_city,source_country,dest_country,distance_km,tariff_rate,transport_mode,transit_days,weight
+SHA,LAX,Shanghai,Los Angeles,China,USA,10432.3,0.145,sea,13.0,13.458
+LAX,SHA,Los Angeles,Shanghai,USA,China,10432.3,0.125,sea,13.0,13.04
+SHA,SEA,Shanghai,Seattle,China,USA,9187.2,0.145,sea,11.5,11.851
+SEA,SHA,Seattle,Shanghai,USA,China,9187.2,0.125,sea,11.5,11.484
+SHA,YVR,Shanghai,Vancouver,China,Canada,9027.2,0.005,sea,11.3,9.117
+YVR,SHA,Vancouver,Shanghai,Canada,China,9027.2,0.005,sea,11.3,9.117
+SZX,LAX,Shenzhen,Los Angeles,China,USA,11636.3,0.145,sea,14.5,15.011
+LAX,SZX,Los Angeles,Shenzhen,USA,China,11636.3,0.125,sea,14.5,14.545
+HKG,LAX,Hong Kong,Los Angeles,China,USA,11646.5,0.145,sea,14.6,15.024
+LAX,HKG,Los Angeles,Hong Kong,USA,China,11646.5,0.125,sea,14.6,14.558
+HKG,NYC,Hong Kong,New York,China,USA,12955.6,0.145,sea,16.2,16.713
+NYC,HKG,New York,Hong Kong,USA,China,12955.6,0.125,sea,16.2,16.194
+SGP,LAX,Singapore,Los Angeles,Singapore,USA,14115.6,0.005,sea,17.6,14.257
+LAX,SGP,Los Angeles,Singapore,USA,Singapore,14115.6,0.005,sea,17.6,14.257
+SGP,RTM,Singapore,Rotterdam,Singapore,Netherlands,10527.5,0.005,sea,13.2,10.633
+RTM,SGP,Rotterdam,Singapore,Netherlands,Singapore,10527.5,0.005,sea,13.2,10.633
+TPE,LAX,Taipei,Los Angeles,Taiwan,USA,10902.2,0.005,sea,13.6,11.011
+LAX,TPE,Los Angeles,Taipei,USA,Taiwan,10902.2,0.005,sea,13.6,11.011
+BUS,LAX,Busan,Los Angeles,South Korea,USA,9613.2,0.005,sea,12.0,9.709
+LAX,BUS,Los Angeles,Busan,USA,South Korea,9613.2,0.005,sea,12.0,9.709
+TYO,LAX,Tokyo,Los Angeles,Japan,USA,8811.8,0.005,sea,11.0,8.9
+LAX,TYO,Los Angeles,Tokyo,USA,Japan,8811.8,0.005,sea,11.0,8.9
+TYO,SEA,Tokyo,Seattle,Japan,USA,7697.1,0.005,sea,9.6,7.774
+SEA,TYO,Seattle,Tokyo,USA,Japan,7697.1,0.005,sea,9.6,7.774
+SHA,RTM,Shanghai,Rotterdam,China,Netherlands,8927.1,0.005,sea,11.2,9.016
+RTM,SHA,Rotterdam,Shanghai,Netherlands,China,8927.1,0.005,sea,11.2,9.016
+SHA,HAM,Shanghai,Hamburg,China,Germany,8522.3,0.005,sea,10.7,8.608
+HAM,SHA,Hamburg,Shanghai,Germany,China,8522.3,0.005,sea,10.7,8.608
+SGP,PIR,Singapore,Piraeus,Singapore,Greece,9054.1,0.005,sea,11.3,9.145
+PIR,SGP,Piraeus,Singapore,Greece,Singapore,9054.1,0.005,sea,11.3,9.145
+MUM,RTM,Mumbai,Rotterdam,India,Netherlands,6876.7,0.005,sea,8.6,6.945
+RTM,MUM,Rotterdam,Mumbai,Netherlands,India,6876.7,0.005,sea,8.6,6.945
+MUM,HAM,Mumbai,Hamburg,India,Germany,6532.4,0.005,sea,8.2,6.598
+HAM,MUM,Hamburg,Mumbai,Germany,India,6532.4,0.005,sea,8.2,6.598
+HKG,RTM,Hong Kong,Rotterdam,China,Netherlands,9326.4,0.005,sea,11.7,9.42
+RTM,HKG,Rotterdam,Hong Kong,Netherlands,China,9326.4,0.005,sea,11.7,9.42
+HKG,ANT,Hong Kong,Antwerp,China,Belgium,9368.9,0.005,sea,11.7,9.463
+ANT,HKG,Antwerp,Hong Kong,Belgium,China,9368.9,0.005,sea,11.7,9.463
+KHI,RTM,Karachi,Rotterdam,Pakistan,Netherlands,5994.5,0.005,sea,7.5,6.054
+RTM,KHI,Rotterdam,Karachi,Netherlands,Pakistan,5994.5,0.005,sea,7.5,6.054
+SUZ,RTM,Suez,Rotterdam,Egypt,Netherlands,3353.2,0.005,sea,4.2,3.387
+RTM,SUZ,Rotterdam,Suez,Netherlands,Egypt,3353.2,0.005,sea,4.2,3.387
+SUZ,PIR,Suez,Piraeus,Egypt,Greece,1206.7,0.005,sea,1.5,1.219
+PIR,SUZ,Piraeus,Suez,Greece,Egypt,1206.7,0.005,sea,1.5,1.219
+DJI,SUZ,Djibouti,Suez,Djibouti,Egypt,2318.6,0.005,sea,2.9,2.342
+SUZ,DJI,Suez,Djibouti,Egypt,Djibouti,2318.6,0.005,sea,2.9,2.342
+DXB,RTM,Dubai,Rotterdam,UAE,Netherlands,5174.2,0.005,sea,6.5,5.226
+RTM,DXB,Rotterdam,Dubai,Netherlands,UAE,5174.2,0.005,sea,6.5,5.226
+DXB,SHA,Dubai,Shanghai,UAE,China,6426.3,0.005,sea,8.0,6.491
+SHA,DXB,Shanghai,Dubai,China,UAE,6426.3,0.005,sea,8.0,6.491
+DXB,LAX,Dubai,Los Angeles,UAE,USA,13406.3,0.005,sea,16.8,13.54
+LAX,DXB,Los Angeles,Dubai,USA,UAE,13406.3,0.005,sea,16.8,13.54
+SHA,SGP,Shanghai,Singapore,China,Singapore,3805.7,0.005,sea,4.8,3.844
+SGP,SHA,Singapore,Shanghai,Singapore,China,3805.7,0.005,sea,4.8,3.844
+SHA,HKG,Shanghai,Hong Kong,China,China,1226.7,0.005,sea,1.5,1.239
+HKG,SHA,Hong Kong,Shanghai,China,China,1226.7,0.005,sea,1.5,1.239
+SHA,BUS,Shanghai,Busan,China,South Korea,832.0,0.005,sea,1.0,0.84
+BUS,SHA,Busan,Shanghai,South Korea,China,832.0,0.005,sea,1.0,0.84
+SHA,TYO,Shanghai,Tokyo,China,Japan,1758.2,0.005,sea,2.2,1.776
+TYO,SHA,Tokyo,Shanghai,Japan,China,1758.2,0.005,sea,2.2,1.776
+SHA,TPE,Shanghai,Taipei,China,Taiwan,688.4,0.075,road/rail,1.1,0.792
+TPE,SHA,Taipei,Shanghai,Taiwan,China,688.4,0.075,road/rail,1.1,0.792
+SGP,HKG,Singapore,Hong Kong,Singapore,China,2586.4,0.005,sea,3.2,2.612
+HKG,SGP,Hong Kong,Singapore,China,Singapore,2586.4,0.005,sea,3.2,2.612
+SGP,JKT,Singapore,Jakarta,Singapore,Indonesia,905.4,0.005,sea,1.1,0.914
+JKT,SGP,Jakarta,Singapore,Indonesia,Singapore,905.4,0.005,sea,1.1,0.914
+SGP,BKK,Singapore,Bangkok,Singapore,Thailand,1425.8,0.005,sea,1.8,1.44
+BKK,SGP,Bangkok,Singapore,Thailand,Singapore,1425.8,0.005,sea,1.8,1.44
+SGP,KUL,Singapore,Kuala Lumpur,Singapore,Malaysia,309.2,0.005,road/rail,1.0,0.312
+KUL,SGP,Kuala Lumpur,Singapore,Malaysia,Singapore,309.2,0.005,road/rail,1.0,0.312
+SGP,COL,Singapore,Colombo,Singapore,Sri Lanka,2728.7,0.005,sea,3.4,2.756
+COL,SGP,Colombo,Singapore,Sri Lanka,Singapore,2728.7,0.005,sea,3.4,2.756
+SGP,MUM,Singapore,Mumbai,Singapore,India,3903.9,0.005,sea,4.9,3.943
+MUM,SGP,Mumbai,Singapore,India,Singapore,3903.9,0.005,sea,4.9,3.943
+SGP,CHE,Singapore,Chennai,Singapore,India,2902.4,0.005,sea,3.6,2.931
+CHE,SGP,Chennai,Singapore,India,Singapore,2902.4,0.005,sea,3.6,2.931
+HKG,BUS,Hong Kong,Busan,China,South Korea,2033.5,0.005,sea,2.5,2.054
+BUS,HKG,Busan,Hong Kong,South Korea,China,2033.5,0.005,sea,2.5,2.054
+TPE,HKG,Taipei,Hong Kong,Taiwan,China,810.9,0.075,sea,1.0,0.932
+HKG,TPE,Hong Kong,Taipei,China,Taiwan,810.9,0.075,sea,1.0,0.932
+TPE,SGP,Taipei,Singapore,Taiwan,Singapore,3250.3,0.005,sea,4.1,3.283
+SGP,TPE,Singapore,Taipei,Singapore,Taiwan,3250.3,0.005,sea,4.1,3.283
+HCM,SGP,Ho Chi Minh,Singapore,Vietnam,Singapore,1097.8,0.005,sea,1.4,1.109
+SGP,HCM,Singapore,Ho Chi Minh,Singapore,Vietnam,1097.8,0.005,sea,1.4,1.109
+HCM,SHA,Ho Chi Minh,Shanghai,Vietnam,China,2735.8,0.005,sea,3.4,2.763
+SHA,HCM,Shanghai,Ho Chi Minh,China,Vietnam,2735.8,0.005,sea,3.4,2.763
+KUL,SHA,Kuala Lumpur,Shanghai,Malaysia,China,3748.7,0.005,sea,4.7,3.786
+SHA,KUL,Shanghai,Kuala Lumpur,China,Malaysia,3748.7,0.005,sea,4.7,3.786
+BKK,SHA,Bangkok,Shanghai,Thailand,China,2889.3,0.005,sea,3.6,2.918
+SHA,BKK,Shanghai,Bangkok,China,Thailand,2889.3,0.005,sea,3.6,2.918
+ICN,SHA,Incheon,Shanghai,South Korea,China,829.2,0.005,air,1.0,0.837
+SHA,ICN,Shanghai,Incheon,China,South Korea,829.2,0.005,air,1.0,0.837
+ICN,SGP,Incheon,Singapore,South Korea,Singapore,4634.9,0.005,air,1.0,4.681
+SGP,ICN,Singapore,Incheon,Singapore,South Korea,4634.9,0.005,air,1.0,4.681
+BUS,SGP,Busan,Singapore,South Korea,Singapore,4579.2,0.005,sea,5.7,4.625
+SGP,BUS,Singapore,Busan,Singapore,South Korea,4579.2,0.005,sea,5.7,4.625
+OSK,SHA,Osaka,Shanghai,Japan,China,1363.0,0.005,sea,1.7,1.377
+SHA,OSK,Shanghai,Osaka,China,Japan,1363.0,0.005,sea,1.7,1.377
+SZX,SGP,Shenzhen,Singapore,China,Singapore,2603.2,0.005,sea,3.3,2.629
+SGP,SZX,Singapore,Shenzhen,Singapore,China,2603.2,0.005,sea,3.3,2.629
+GZH,SGP,Guangzhou,Singapore,China,Singapore,2627.3,0.005,sea,3.3,2.654
+SGP,GZH,Singapore,Guangzhou,Singapore,China,2627.3,0.005,sea,3.3,2.654
+GZH,SHA,Guangzhou,Shanghai,China,China,1211.8,0.005,sea,1.5,1.224
+SHA,GZH,Shanghai,Guangzhou,China,China,1211.8,0.005,sea,1.5,1.224
+TJN,SHA,Tianjin,Shanghai,China,China,975.6,0.005,sea,1.2,0.985
+SHA,TJN,Shanghai,Tianjin,China,China,975.6,0.005,sea,1.2,0.985
+CHG,SHA,Chengdu,Shanghai,China,China,1660.1,0.005,sea,2.1,1.677
+SHA,CHG,Shanghai,Chengdu,China,China,1660.1,0.005,sea,2.1,1.677
+CHG,GZH,Chengdu,Guangzhou,China,China,1230.1,0.005,sea,1.5,1.242
+GZH,CHG,Guangzhou,Chengdu,China,China,1230.1,0.005,sea,1.5,1.242
+MUM,DXB,Mumbai,Dubai,India,UAE,1935.1,0.005,sea,2.4,1.954
+DXB,MUM,Dubai,Mumbai,UAE,India,1935.1,0.005,sea,2.4,1.954
+DEL,MUM,Delhi,Mumbai,India,India,1147.2,0.005,sea,1.4,1.159
+MUM,DEL,Mumbai,Delhi,India,India,1147.2,0.005,sea,1.4,1.159
+CHE,MUM,Chennai,Mumbai,India,India,1033.3,0.005,sea,1.3,1.044
+MUM,CHE,Mumbai,Chennai,India,India,1033.3,0.005,sea,1.3,1.044
+DOH,DXB,Doha,Dubai,Qatar,UAE,376.3,0.005,air,1.0,0.38
+DXB,DOH,Dubai,Doha,UAE,Qatar,376.3,0.005,air,1.0,0.38
+ABU,DXB,Abu Dhabi,Dubai,UAE,UAE,121.8,0.005,road/rail,1.0,0.123
+DXB,ABU,Dubai,Abu Dhabi,UAE,UAE,121.8,0.005,road/rail,1.0,0.123
+JED,DXB,Jeddah,Dubai,Saudi Arabia,UAE,1691.4,0.005,sea,2.1,1.708
+DXB,JED,Dubai,Jeddah,UAE,Saudi Arabia,1691.4,0.005,sea,2.1,1.708
+KHI,MUM,Karachi,Mumbai,Pakistan,India,882.6,0.005,sea,1.1,0.891
+MUM,KHI,Mumbai,Karachi,India,Pakistan,882.6,0.005,sea,1.1,0.891
+KHI,DXB,Karachi,Dubai,Pakistan,UAE,1183.1,0.005,sea,1.5,1.195
+DXB,KHI,Dubai,Karachi,UAE,Pakistan,1183.1,0.005,sea,1.5,1.195
+COL,MUM,Colombo,Mumbai,Sri Lanka,India,1546.9,0.005,sea,1.9,1.562
+MUM,COL,Mumbai,Colombo,India,Sri Lanka,1546.9,0.005,sea,1.9,1.562
+SYD,SGP,Sydney,Singapore,Australia,Singapore,6306.2,0.005,sea,7.9,6.369
+SGP,SYD,Singapore,Sydney,Singapore,Australia,6306.2,0.005,sea,7.9,6.369
+SYD,SHA,Sydney,Shanghai,Australia,China,7881.7,0.005,sea,9.9,7.96
+SHA,SYD,Shanghai,Sydney,China,Australia,7881.7,0.005,sea,9.9,7.96
+RTM,HAM,Rotterdam,Hamburg,Netherlands,Germany,412.7,0.005,road/rail,1.0,0.417
+HAM,RTM,Hamburg,Rotterdam,Germany,Netherlands,412.7,0.005,road/rail,1.0,0.417
+RTM,ANT,Rotterdam,Antwerp,Netherlands,Belgium,78.0,0.005,road/rail,1.0,0.079
+ANT,RTM,Antwerp,Rotterdam,Belgium,Netherlands,78.0,0.005,road/rail,1.0,0.079
+RTM,FLX,Rotterdam,Felixstowe,Netherlands,UK,214.6,0.005,road/rail,1.0,0.217
+FLX,RTM,Felixstowe,Rotterdam,UK,Netherlands,214.6,0.005,road/rail,1.0,0.217
+HAM,FRA,Hamburg,Frankfurt,Germany,Germany,392.9,0.005,air,1.0,0.397
+FRA,HAM,Frankfurt,Hamburg,Germany,Germany,392.9,0.005,air,1.0,0.397
+ANT,PAR,Antwerp,Paris,Belgium,France,300.5,0.005,road/rail,1.0,0.303
+PAR,ANT,Paris,Antwerp,France,Belgium,300.5,0.005,road/rail,1.0,0.303
+FLX,LON,Felixstowe,London,UK,UK,113.5,0.005,road/rail,1.0,0.115
+LON,FLX,London,Felixstowe,UK,UK,113.5,0.005,road/rail,1.0,0.115
+LON,PAR,London,Paris,UK,France,343.5,0.005,road/rail,1.0,0.347
+PAR,LON,Paris,London,France,UK,343.5,0.005,road/rail,1.0,0.347
+LON,FRA,London,Frankfurt,UK,Germany,637.9,0.005,air,1.0,0.644
+FRA,LON,Frankfurt,London,Germany,UK,637.9,0.005,air,1.0,0.644
+PAR,MIL,Paris,Milan,France,Italy,639.5,0.005,road/rail,1.1,0.646
+MIL,PAR,Milan,Paris,Italy,France,639.5,0.005,road/rail,1.1,0.646
+FRA,MIL,Frankfurt,Milan,Germany,Italy,517.3,0.005,air,1.0,0.523
+MIL,FRA,Milan,Frankfurt,Italy,Germany,517.3,0.005,air,1.0,0.523
+FRA,WAR,Frankfurt,Warsaw,Germany,Poland,890.2,0.005,air,1.0,0.899
+WAR,FRA,Warsaw,Frankfurt,Poland,Germany,890.2,0.005,air,1.0,0.899
+MIL,BCN,Milan,Barcelona,Italy,Spain,725.6,0.005,road/rail,1.2,0.733
+BCN,MIL,Barcelona,Milan,Spain,Italy,725.6,0.005,road/rail,1.2,0.733
+BCN,PIR,Barcelona,Piraeus,Spain,Greece,1873.0,0.005,sea,2.3,1.892
+PIR,BCN,Piraeus,Barcelona,Greece,Spain,1873.0,0.005,sea,2.3,1.892
+PIR,IST,Piraeus,Istanbul,Greece,Turkey,568.6,0.005,road/rail,1.0,0.574
+IST,PIR,Istanbul,Piraeus,Turkey,Greece,568.6,0.005,road/rail,1.0,0.574
+IST,DXB,Istanbul,Dubai,Turkey,UAE,2996.9,0.005,sea,3.7,3.027
+DXB,IST,Dubai,Istanbul,UAE,Turkey,2996.9,0.005,sea,3.7,3.027
+IST,SHA,Istanbul,Shanghai,Turkey,China,7987.1,0.005,sea,10.0,8.067
+SHA,IST,Shanghai,Istanbul,China,Turkey,7987.1,0.005,sea,10.0,8.067
+LAX,NYC,Los Angeles,New York,USA,USA,3955.0,0.005,sea,4.9,3.995
+NYC,LAX,New York,Los Angeles,USA,USA,3955.0,0.005,sea,4.9,3.995
+LAX,CHI,Los Angeles,Chicago,USA,USA,2823.8,0.005,sea,3.5,2.852
+CHI,LAX,Chicago,Los Angeles,USA,USA,2823.8,0.005,sea,3.5,2.852
+LAX,HOU,Los Angeles,Houston,USA,USA,2220.1,0.005,sea,2.8,2.242
+HOU,LAX,Houston,Los Angeles,USA,USA,2220.1,0.005,sea,2.8,2.242
+LAX,SEA,Los Angeles,Seattle,USA,USA,1556.0,0.005,sea,1.9,1.572
+SEA,LAX,Seattle,Los Angeles,USA,USA,1556.0,0.005,sea,1.9,1.572
+LAX,MIA,Los Angeles,Miami,USA,USA,3773.4,0.005,sea,4.7,3.811
+MIA,LAX,Miami,Los Angeles,USA,USA,3773.4,0.005,sea,4.7,3.811
+LAX,MEX,Los Angeles,Mexico City,USA,Mexico,2495.5,0.025,sea,3.1,2.62
+MEX,LAX,Mexico City,Los Angeles,Mexico,USA,2495.5,0.025,sea,3.1,2.62
+NYC,MIA,New York,Miami,USA,USA,1757.7,0.005,sea,2.2,1.775
+MIA,NYC,Miami,New York,USA,USA,1757.7,0.005,sea,2.2,1.775
+NYC,CHI,New York,Chicago,USA,USA,1144.0,0.005,sea,1.4,1.155
+CHI,NYC,Chicago,New York,USA,USA,1144.0,0.005,sea,1.4,1.155
+NYC,LON,New York,London,USA,UK,5570.4,0.005,sea,7.0,5.626
+LON,NYC,London,New York,UK,USA,5570.4,0.005,sea,7.0,5.626
+NYC,RTM,New York,Rotterdam,USA,Netherlands,5854.3,0.005,sea,7.3,5.913
+RTM,NYC,Rotterdam,New York,Netherlands,USA,5854.3,0.005,sea,7.3,5.913
+SEA,YVR,Seattle,Vancouver,USA,Canada,191.4,0.005,road/rail,1.0,0.193
+YVR,SEA,Vancouver,Seattle,Canada,USA,191.4,0.005,road/rail,1.0,0.193
+HOU,MIA,Houston,Miami,USA,USA,1557.0,0.005,sea,1.9,1.573
+MIA,HOU,Miami,Houston,USA,USA,1557.0,0.005,sea,1.9,1.573
+MEX,CHI,Mexico City,Chicago,Mexico,USA,2721.9,0.025,sea,3.4,2.858
+CHI,MEX,Chicago,Mexico City,USA,Mexico,2721.9,0.025,sea,3.4,2.858
+MEX,MIA,Mexico City,Miami,Mexico,USA,2065.2,0.025,sea,2.6,2.168
+MIA,MEX,Miami,Mexico City,USA,Mexico,2065.2,0.025,sea,2.6,2.168
+PAN,MIA,Panama City,Miami,Panama,USA,1866.1,0.005,sea,2.3,1.885
+MIA,PAN,Miami,Panama City,USA,Panama,1866.1,0.005,sea,2.3,1.885
+PAN,LAX,Panama City,Los Angeles,Panama,USA,4839.5,0.005,sea,6.0,4.888
+LAX,PAN,Los Angeles,Panama City,USA,Panama,4839.5,0.005,sea,6.0,4.888
+PAN,SAO,Panama City,São Paulo,Panama,Brazil,5086.3,0.005,sea,6.4,5.137
+SAO,PAN,São Paulo,Panama City,Brazil,Panama,5086.3,0.005,sea,6.4,5.137
+SAO,SSZ,São Paulo,Santos,Brazil,Brazil,53.9,0.005,road/rail,1.0,0.054
+SSZ,SAO,Santos,São Paulo,Brazil,Brazil,53.9,0.005,road/rail,1.0,0.054
+SSZ,RTM,Santos,Rotterdam,Brazil,Netherlands,9774.1,0.005,sea,12.2,9.872
+RTM,SSZ,Rotterdam,Santos,Netherlands,Brazil,9774.1,0.005,sea,12.2,9.872
+SSZ,LAX,Santos,Los Angeles,Brazil,USA,9964.7,0.005,sea,12.5,10.064
+LAX,SSZ,Los Angeles,Santos,USA,Brazil,9964.7,0.005,sea,12.5,10.064
+BOG,PAN,Bogotá,Panama City,Colombia,Panama,767.0,0.005,sea,1.0,0.775
+PAN,BOG,Panama City,Bogotá,Panama,Colombia,767.0,0.005,sea,1.0,0.775
+BUE,SSZ,Buenos Aires,Santos,Argentina,Brazil,1665.3,0.005,sea,2.1,1.682
+SSZ,BUE,Santos,Buenos Aires,Brazil,Argentina,1665.3,0.005,sea,2.1,1.682
+YVR,LAX,Vancouver,Los Angeles,Canada,USA,1747.1,0.005,sea,2.2,1.765
+LAX,YVR,Los Angeles,Vancouver,USA,Canada,1747.1,0.005,sea,2.2,1.765
+CPT,RTM,Cape Town,Rotterdam,South Africa,Netherlands,9642.3,0.005,sea,12.1,9.739
+RTM,CPT,Rotterdam,Cape Town,Netherlands,South Africa,9642.3,0.005,sea,12.1,9.739
+CPT,LAX,Cape Town,Los Angeles,South Africa,USA,16062.7,0.005,sea,20.1,16.223
+LAX,CPT,Los Angeles,Cape Town,USA,South Africa,16062.7,0.005,sea,20.1,16.223
+CPT,DXB,Cape Town,Dubai,South Africa,UAE,7640.1,0.005,sea,9.6,7.717
+DXB,CPT,Dubai,Cape Town,UAE,South Africa,7640.1,0.005,sea,9.6,7.717
+DJI,MUM,Djibouti,Mumbai,Djibouti,India,3289.9,0.005,sea,4.1,3.323
+MUM,DJI,Mumbai,Djibouti,India,Djibouti,3289.9,0.005,sea,4.1,3.323
+DJI,SGP,Djibouti,Singapore,Djibouti,Singapore,6785.5,0.005,sea,8.5,6.853
+SGP,DJI,Singapore,Djibouti,Singapore,Djibouti,6785.5,0.005,sea,8.5,6.853
+DJI,DXB,Djibouti,Dubai,Djibouti,UAE,1978.6,0.005,sea,2.5,1.998
+DXB,DJI,Dubai,Djibouti,UAE,Djibouti,1978.6,0.005,sea,2.5,1.998
+LGS,RTM,Lagos,Rotterdam,Nigeria,Netherlands,5048.1,0.005,sea,6.3,5.099
+RTM,LGS,Rotterdam,Lagos,Netherlands,Nigeria,5048.1,0.005,sea,6.3,5.099
+LGS,DXB,Lagos,Dubai,Nigeria,UAE,5882.0,0.005,sea,7.4,5.941
+DXB,LGS,Dubai,Lagos,UAE,Nigeria,5882.0,0.005,sea,7.4,5.941
+MSC,WAR,Moscow,Warsaw,Russia,Poland,1150.8,0.005,sea,1.4,1.162
+WAR,MSC,Warsaw,Moscow,Poland,Russia,1150.8,0.005,sea,1.4,1.162
+MSC,SHA,Moscow,Shanghai,Russia,China,6817.0,0.005,sea,8.5,6.885
+SHA,MSC,Shanghai,Moscow,China,Russia,6817.0,0.005,sea,8.5,6.885
+NVS,MSC,Novosibirsk,Moscow,Russia,Russia,2811.2,0.005,sea,3.5,2.839
+MSC,NVS,Moscow,Novosibirsk,Russia,Russia,2811.2,0.005,sea,3.5,2.839
+NVS,SHA,Novosibirsk,Shanghai,Russia,China,4011.7,0.005,sea,5.0,4.052
+SHA,NVS,Shanghai,Novosibirsk,China,Russia,4011.7,0.005,sea,5.0,4.052
+ALM,SHA,Almaty,Shanghai,Kazakhstan,China,4107.7,0.005,sea,5.1,4.149
+SHA,ALM,Shanghai,Almaty,China,Kazakhstan,4107.7,0.005,sea,5.1,4.149
+ALM,MSC,Almaty,Moscow,Kazakhstan,Russia,3106.0,0.005,sea,3.9,3.137
+MSC,ALM,Moscow,Almaty,Russia,Kazakhstan,3106.0,0.005,sea,3.9,3.137
+ALM,DXB,Almaty,Dubai,Kazakhstan,UAE,2811.3,0.005,sea,3.5,2.839
+DXB,ALM,Dubai,Almaty,UAE,Kazakhstan,2811.3,0.005,sea,3.5,2.839

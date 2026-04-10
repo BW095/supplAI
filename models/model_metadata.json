@@ -1,0 +1,19 @@
+{
+  "delay_model_auc": 0.6835,
+  "training_samples": 25000,
+  "delay_rate": 43.1,
+  "features": [
+    "distance_km",
+    "tariff_rate",
+    "transit_days",
+    "carrier_tier",
+    "cargo_risk",
+    "mode_risk",
+    "country_risk",
+    "weather_severity",
+    "port_congestion",
+    "value_usd",
+    "weight_tons"
+  ],
+  "trained_at": "2026-04-10T14:57:49.629967+00:00"
+}

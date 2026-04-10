@@ -1,0 +1,471 @@
+[
+  {
+    "timestamp": "2026-04-10T17:29:03Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T17:28:57Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:28:57Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 17:28 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T17:23:57Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T17:23:52Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:23:52Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 17:23 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T17:18:52Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T17:18:46Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:18:46Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 17:18 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T17:13:46Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T17:13:46Z",
+    "level": "info",
+    "category": "info",
+    "icon": "\u2139\ufe0f",
+    "message": "\u2139\ufe0f Signal could not be mapped to network nodes \u2014 skipping"
+  },
+  {
+    "timestamp": "2026-04-10T17:13:46Z",
+    "level": "warning",
+    "category": "disruption",
+    "icon": "\ud83d\udea8",
+    "message": "\ud83d\udea8 Disruption detected: Palestinian shot dead during Israeli settler attack on occupied West Bank villag"
+  },
+  {
+    "timestamp": "2026-04-10T17:13:41Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:13:41Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 17:13 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T17:08:41Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T17:08:36Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:08:36Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 17:08 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T17:04:11Z",
+    "level": "info",
+    "category": "notification",
+    "icon": "\ud83d\udcec",
+    "message": "\ud83d\udcec 6 advisory notifications dispatched to suppliers"
+  },
+  {
+    "timestamp": "2026-04-10T17:04:11Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Simulation decision (deterministic): 3 route suggestions, 1 flagged, High risk"
+  },
+  {
+    "timestamp": "2026-04-10T17:04:11Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Agent analyzing simulation\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:04:11Z",
+    "level": "info",
+    "category": "route",
+    "icon": "\ud83d\udd04",
+    "message": "\ud83d\udd04 Simulation: 8 alternate routes found"
+  },
+  {
+    "timestamp": "2026-04-10T17:04:11Z",
+    "level": "info",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udf10 Simulation cascade: 49 nodes, 500 shipments at risk"
+  },
+  {
+    "timestamp": "2026-04-10T17:04:11Z",
+    "level": "warning",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udfaf SIMULATION TRIGGERED: US imposes emergency 200% tariff surcharge on all Chinese electronics imports"
+  },
+  {
+    "timestamp": "2026-04-10T17:03:36Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T17:03:14Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T17:03:14Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 17:03 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T16:58:14Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T16:58:09Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T16:58:09Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 16:58 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T16:57:28Z",
+    "level": "info",
+    "category": "notification",
+    "icon": "\ud83d\udcec",
+    "message": "\ud83d\udcec 4 advisory notifications dispatched to suppliers"
+  },
+  {
+    "timestamp": "2026-04-10T16:57:28Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Simulation decision (gemini): 0 route suggestions, 3 flagged, High risk"
+  },
+  {
+    "timestamp": "2026-04-10T16:57:08Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Agent analyzing simulation\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T16:57:08Z",
+    "level": "info",
+    "category": "route",
+    "icon": "\ud83d\udd04",
+    "message": "\ud83d\udd04 Simulation: 8 alternate routes found"
+  },
+  {
+    "timestamp": "2026-04-10T16:57:07Z",
+    "level": "info",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udf10 Simulation cascade: 45 nodes, 480 shipments at risk"
+  },
+  {
+    "timestamp": "2026-04-10T16:57:07Z",
+    "level": "warning",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udfaf SIMULATION TRIGGERED: Iran and Isreal War affecting LPG supply in india"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Scan complete \u2014 0 active disruption(s)"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "info",
+    "category": "info",
+    "icon": "\u2139\ufe0f",
+    "message": "\u2139\ufe0f Signal could not be mapped to network nodes \u2014 skipping"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "warning",
+    "category": "disruption",
+    "icon": "\ud83d\udea8",
+    "message": "\ud83d\udea8 Disruption detected: Taiwan opposition leader meets Xi Jinping in Beijing"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "info",
+    "category": "info",
+    "icon": "\u2139\ufe0f",
+    "message": "\u2139\ufe0f Signal could not be mapped to network nodes \u2014 skipping"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "warning",
+    "category": "disruption",
+    "icon": "\ud83d\udea8",
+    "message": "\ud83d\udea8 Disruption detected: Melania Trump denies ties to Jeffrey Epstein and urges hearing for survivors"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "info",
+    "category": "info",
+    "icon": "\u2139\ufe0f",
+    "message": "\u2139\ufe0f Signal could not be mapped to network nodes \u2014 skipping"
+  },
+  {
+    "timestamp": "2026-04-10T16:53:09Z",
+    "level": "warning",
+    "category": "disruption",
+    "icon": "\ud83d\udea8",
+    "message": "\ud83d\udea8 Disruption detected: Trump says Iran's handling of Strait of Hormuz is 'not the agreement we have'"
+  },
+  {
+    "timestamp": "2026-04-10T16:52:43Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udce1 Fetching live intelligence signals\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T16:52:43Z",
+    "level": "info",
+    "category": "scan",
+    "icon": "\ud83d\udd0d",
+    "message": "\ud83d\udd0d Scan started at 16:52 UTC"
+  },
+  {
+    "timestamp": "2026-04-10T16:52:43Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\ud83d\ude80 SupplAI Watchtower daemon started"
+  },
+  {
+    "timestamp": "2026-04-10T16:51:40Z",
+    "level": "info",
+    "category": "notification",
+    "icon": "\ud83d\udcec",
+    "message": "\ud83d\udcec 6 advisory notifications dispatched to suppliers"
+  },
+  {
+    "timestamp": "2026-04-10T16:51:40Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Simulation decision (deterministic): 3 route suggestions, 1 flagged, High risk"
+  },
+  {
+    "timestamp": "2026-04-10T16:51:31Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Agent analyzing simulation\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T16:51:31Z",
+    "level": "info",
+    "category": "route",
+    "icon": "\ud83d\udd04",
+    "message": "\ud83d\udd04 Simulation: 8 alternate routes found"
+  },
+  {
+    "timestamp": "2026-04-10T16:51:31Z",
+    "level": "info",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udf10 Simulation cascade: 45 nodes, 480 shipments at risk"
+  },
+  {
+    "timestamp": "2026-04-10T16:51:31Z",
+    "level": "warning",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udfaf SIMULATION TRIGGERED: Severe flooding in Rotterdam port area \u2014 60% of dock operations suspended"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:59Z",
+    "level": "info",
+    "category": "notification",
+    "icon": "\ud83d\udcec",
+    "message": "\ud83d\udcec 5 advisory notifications dispatched to suppliers"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:59Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Simulation decision (gemini): 0 route suggestions, 5 flagged, Critical risk"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:41Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Agent analyzing simulation\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:41Z",
+    "level": "info",
+    "category": "route",
+    "icon": "\ud83d\udd04",
+    "message": "\ud83d\udd04 Simulation: 6 alternate routes found"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:41Z",
+    "level": "info",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udf10 Simulation cascade: 42 nodes, 480 shipments at risk"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:41Z",
+    "level": "warning",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udfaf SIMULATION TRIGGERED: Suez Canal blocked by grounded vessel \u2014 all trans-Suez shipping halted indefinitely"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:41Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Graph loaded: 58 nodes, 240 edges, 39 countries"
+  },
+  {
+    "timestamp": "2026-04-10T16:38:40Z",
+    "level": "info",
+    "category": "info",
+    "icon": "\u2139\ufe0f",
+    "message": "\ud83d\udcca Loading supply chain graph\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:18Z",
+    "level": "info",
+    "category": "notification",
+    "icon": "\ud83d\udcec",
+    "message": "\ud83d\udcec 6 simulation notifications dispatched"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:18Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Simulation decision (deterministic): 3 reroutes, 1 flagged, Critical risk"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:01Z",
+    "level": "info",
+    "category": "agent",
+    "icon": "\ud83e\udd16",
+    "message": "\ud83e\udd16 Agent analyzing simulation\u2026"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:01Z",
+    "level": "info",
+    "category": "route",
+    "icon": "\ud83d\udd04",
+    "message": "\ud83d\udd04 Simulation: 8 alternate routes found"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:01Z",
+    "level": "info",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udf10 Simulation cascade: 47 nodes, 500 shipments at risk"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:01Z",
+    "level": "warning",
+    "category": "simulation",
+    "icon": "\ud83c\udfaf",
+    "message": "\ud83c\udfaf SIMULATION TRIGGERED: Port of Shanghai closed due to typhoon \u2014 all outbound container traffic suspended"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:01Z",
+    "level": "info",
+    "category": "success",
+    "icon": "\u2705",
+    "message": "\u2705 Graph loaded: 58 nodes, 240 edges, 39 countries"
+  },
+  {
+    "timestamp": "2026-04-10T14:33:00Z",
+    "level": "info",
+    "category": "info",
+    "icon": "\u2139\ufe0f",
+    "message": "\ud83d\udcca Loading supply chain graph\u2026"
+  }
+]

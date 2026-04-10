@@ -1,0 +1,59 @@
+city_id,city_name,country,lat,lon,tier,type,product_category
+SHA,Shanghai,China,31.23,121.47,1,port,Electronics
+SZX,Shenzhen,China,22.54,114.06,1,port,Electronics
+GZH,Guangzhou,China,23.13,113.26,2,city,Manufacturing
+TJN,Tianjin,China,39.34,117.36,2,port,Automotive
+CHG,Chengdu,China,30.57,104.07,3,city,Technology
+SGP,Singapore,Singapore,1.35,103.82,1,port,Semiconductors
+HKG,Hong Kong,China,22.32,114.17,1,port,Finance/Logistics
+TYO,Tokyo,Japan,35.68,139.69,1,city,Automotive
+OSK,Osaka,Japan,34.69,135.5,2,port,Manufacturing
+BUS,Busan,South Korea,35.18,129.07,1,port,Automotive
+ICN,Incheon,South Korea,37.46,126.44,2,airport,Semiconductors
+MUM,Mumbai,India,19.08,72.88,2,port,Pharmaceuticals
+DEL,Delhi,India,28.61,77.21,2,city,Textiles
+CHE,Chennai,India,13.08,80.27,3,port,Automotive
+KUL,Kuala Lumpur,Malaysia,3.14,101.69,2,city,Electronics
+BKK,Bangkok,Thailand,13.75,100.52,2,port,Food & Agriculture
+JKT,Jakarta,Indonesia,-6.21,106.85,3,port,Raw Materials
+HCM,Ho Chi Minh,Vietnam,10.82,106.63,2,port,Textiles
+TPE,Taipei,Taiwan,25.04,121.56,1,city,Semiconductors
+SYD,Sydney,Australia,-33.87,151.21,3,port,Mining/Resources
+RTM,Rotterdam,Netherlands,51.92,4.48,1,port,Chemicals
+HAM,Hamburg,Germany,53.55,9.99,1,port,Automotive
+ANT,Antwerp,Belgium,51.22,4.4,2,port,Chemicals
+FLX,Felixstowe,UK,51.96,1.35,2,port,Consumer Goods
+LON,London,UK,51.51,-0.13,1,city,Finance/Logistics
+PAR,Paris,France,48.86,2.35,2,city,Luxury Goods
+FRA,Frankfurt,Germany,50.11,8.68,2,airport,Pharmaceuticals
+MIL,Milan,Italy,45.47,9.19,2,city,Luxury Goods
+BCN,Barcelona,Spain,41.39,2.17,3,port,Food & Agriculture
+PIR,Piraeus,Greece,37.94,23.65,2,port,Transshipment
+IST,Istanbul,Turkey,41.01,28.95,2,port,Textiles
+WAR,Warsaw,Poland,52.23,21.01,3,city,Manufacturing
+DXB,Dubai,UAE,25.2,55.27,1,port,Transshipment
+ABU,Abu Dhabi,UAE,24.47,54.37,2,city,Oil & Gas
+JED,Jeddah,Saudi Arabia,21.49,39.19,2,port,Oil & Gas
+SUZ,Suez,Egypt,29.97,32.55,1,canal,Transshipment
+CPT,Cape Town,South Africa,-33.93,18.42,3,port,Mining/Resources
+DJI,Djibouti,Djibouti,11.59,43.15,2,port,Transshipment
+LGS,Lagos,Nigeria,6.53,3.38,3,port,Oil & Gas
+LAX,Los Angeles,USA,33.93,-118.41,1,port,Consumer Goods
+NYC,New York,USA,40.71,-74.01,1,port,Finance/Logistics
+CHI,Chicago,USA,41.88,-87.63,2,city,Manufacturing
+HOU,Houston,USA,29.76,-95.37,2,port,Oil & Gas
+MIA,Miami,USA,25.76,-80.19,2,port,Food & Agriculture
+SEA,Seattle,USA,47.61,-122.33,2,port,Aerospace
+YVR,Vancouver,Canada,49.25,-123.12,2,port,Raw Materials
+MEX,Mexico City,Mexico,19.43,-99.13,3,city,Automotive
+PAN,Panama City,Panama,8.99,-79.52,1,canal,Transshipment
+SAO,São Paulo,Brazil,-23.55,-46.63,2,city,Food & Agriculture
+SSZ,Santos,Brazil,-23.95,-46.33,2,port,Food & Agriculture
+BOG,Bogotá,Colombia,4.71,-74.07,3,city,Food & Agriculture
+BUE,Buenos Aires,Argentina,-34.6,-58.44,3,port,Food & Agriculture
+MSC,Moscow,Russia,55.75,37.62,3,city,Raw Materials
+NVS,Novosibirsk,Russia,54.99,82.9,4,city,Raw Materials
+ALM,Almaty,Kazakhstan,43.25,76.94,4,city,Raw Materials
+KHI,Karachi,Pakistan,24.86,67.01,3,port,Textiles
+COL,Colombo,Sri Lanka,6.93,79.85,3,port,Transshipment
+DOH,Doha,Qatar,25.29,51.53,2,airport,Oil & Gas

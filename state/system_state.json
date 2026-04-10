@@ -1,0 +1,16 @@
+{
+  "status": "monitoring",
+  "watchtower_running": false,
+  "last_scan_utc": "2026-04-10T17:28:57.822725+00:00",
+  "scan_interval_minutes": 5,
+  "active_disruptions": 0,
+  "decisions_today": 4,
+  "total_decisions": 4,
+  "total_notifications": 21,
+  "network_nodes": 58,
+  "network_edges": 240,
+  "active_shipments": 500,
+  "current_activity": "All clear",
+  "started_at": "2026-04-10T16:52:43.860695+00:00",
+  "_today": "2026-04-10"
+}

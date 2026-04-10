@@ -1,0 +1,1443 @@
+[
+  {
+    "decision_id": "DEC-C8A48E79",
+    "event_id": "SIM-1775840651",
+    "event_text": "US imposes emergency 200% tariff surcharge on all Chinese electronics imports",
+    "severity": "high",
+    "trigger_source": "simulation",
+    "steps": [
+      {
+        "step": 1,
+        "tool": "assess_disruptions",
+        "thought": "Disruption detected: 'US imposes emergency 200% tariff surcharge on all Chinese electronics imports'. Starting scope assessment \u2014 how many nodes, countries, and shipments are affected?",
+        "args": {},
+        "result": {
+          "event": "US imposes emergency 200% tariff surcharge on all Chinese electronics imports",
+          "severity": "high",
+          "seed_nodes": [
+            "SHA",
+            "SZX",
+            "LAX",
+            "NYC"
+          ],
+          "total_cascade_nodes": 49,
+          "countries_affected": 31,
+          "shipments_at_risk": 500,
+          "estimated_cost_usd": 6680000.0,
+          "top_risk_nodes": [
+            {
+              "node": "SHA",
+              "city": "Shanghai",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Electronics",
+              "tier": 1
+            },
+            {
+              "node": "SGP",
+              "city": "Singapore",
+              "country": "Singapore",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Semiconductors",
+              "tier": 1
+            },
+            {
+              "node": "NYC",
+              "city": "New York",
+              "country": "USA",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Finance/Logistics",
+              "tier": 1
+            },
+            {
+              "node": "DXB",
+              "city": "Dubai",
+              "country": "UAE",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Transshipment",
+              "tier": 1
+            },
+            {
+              "node": "RTM",
+              "city": "Rotterdam",
+              "country": "Netherlands",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Chemicals",
+              "tier": 1
+            }
+          ]
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 2,
+        "tool": "score_route_alternatives",
+        "thought": "Scope: 49 nodes, 500 shipments at risk. Now ranking pre-computed rerouting alternatives.",
+        "args": {},
+        "result": {
+          "total_alternatives_found": 8,
+          "total_analyzed": 8,
+          "best_routes": [
+            {
+              "source": "Dubai, UAE",
+              "destination": "Cape Town, South Africa",
+              "detour_pct": -74.1,
+              "cost_delta_usd": 35381.23,
+              "delay_delta_days": -27.3,
+              "safety": "clean",
+              "path": "Dubai, UAE \u2192 Cape Town, South Africa",
+              "score": -31.21
+            },
+            {
+              "source": "Rotterdam, Netherlands",
+              "destination": "London, UK",
+              "detour_pct": -97.1,
+              "cost_delta_usd": 23777.57,
+              "delay_delta_days": -12.3,
+              "safety": "hidden_dependency",
+              "path": "Rotterdam, Netherlands \u2192 Felixstowe, UK \u2192 London, UK",
+              "score": 10.74
+            },
+            {
+              "source": "Taipei, Taiwan",
+              "destination": "Busan, South Korea",
+              "detour_pct": -86.1,
+              "cost_delta_usd": 30232.39,
+              "delay_delta_days": -22.1,
+              "safety": "hidden_dependency",
+              "path": "Taipei, Taiwan \u2192 Hong Kong, China \u2192 Busan, South Korea",
+              "score": 15.76
+            },
+            {
+              "source": "Rotterdam, Netherlands",
+              "destination": "Istanbul, Turkey",
+              "detour_pct": -75.3,
+              "cost_delta_usd": 35107.17,
+              "delay_delta_days": -13.6,
+              "safety": "hidden_dependency",
+              "path": "Rotterdam, Netherlands \u2192 Antwerp, Belgium \u2192 Paris, France \u2192 Milan, Italy \u2192 Barcelona, Spain \u2192 Piraeus, Greece",
+              "score": 19.67
+            },
+            {
+              "source": "Mexico City, Mexico",
+              "destination": "Panama City, Panama",
+              "detour_pct": -46.4,
+              "cost_delta_usd": 35706.89,
+              "delay_delta_days": -4.2,
+              "safety": "hidden_dependency",
+              "path": "Mexico City, Mexico \u2192 Miami, USA \u2192 Panama City, Panama",
+              "score": 32.59
+            }
+          ]
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 3,
+        "tool": "suggest_reroute",
+        "thought": "Route Dubai, UAE\u2192Cape Town, South Africa: viable alternative (-74.1%, $+35,381). Adding to advisory.",
+        "args": {
+          "source": "Dubai, UAE",
+          "destination": "Cape Town, South Africa",
+          "reason": "Alternative route Dubai, UAE \u2192 Cape Town, South Africa added to advisory report for supplier review"
+        },
+        "result": {
+          "status": "suggestion_logged",
+          "message": "Alternative route Dubai, UAE \u2192 Cape Town, South Africa added to advisory report for supplier review"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 4,
+        "tool": "suggest_reroute",
+        "thought": "Route Rotterdam, Netherlands\u2192London, UK: viable alternative (-97.1%, $+23,778). Adding to advisory.",
+        "args": {
+          "source": "Rotterdam, Netherlands",
+          "destination": "London, UK",
+          "reason": "Alternative route Rotterdam, Netherlands \u2192 London, UK added to advisory report for supplier review"
+        },
+        "result": {
+          "status": "suggestion_logged",
+          "message": "Alternative route Rotterdam, Netherlands \u2192 London, UK added to advisory report for supplier review"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 5,
+        "tool": "suggest_reroute",
+        "thought": "Route Taipei, Taiwan\u2192Busan, South Korea: viable alternative (-86.1%, $+30,232). Adding to advisory.",
+        "args": {
+          "source": "Taipei, Taiwan",
+          "destination": "Busan, South Korea",
+          "reason": "Alternative route Taipei, Taiwan \u2192 Busan, South Korea added to advisory report for supplier review"
+        },
+        "result": {
+          "status": "suggestion_logged",
+          "message": "Alternative route Taipei, Taiwan \u2192 Busan, South Korea added to advisory report for supplier review"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 6,
+        "tool": "flag_critical_supplier",
+        "thought": "Shanghai is the highest-risk chokepoint (risk 1.000). Flagging for immediate backup sourcing.",
+        "args": {
+          "node_id": "SHA",
+          "reason": "Shanghai, China",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "SHA",
+          "city": "Shanghai, China"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 7,
+        "tool": "estimate_recovery",
+        "thought": "Based on 49 cascade nodes and high severity, estimating recovery timeline.",
+        "args": {
+          "risk_level": "High",
+          "n_nodes": 49
+        },
+        "result": {
+          "estimated_recovery_days": 18,
+          "risk_level": "High",
+          "n_nodes_affected": 49
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 8,
+        "tool": "notify_suppliers",
+        "thought": "Dispatching advisory alerts to Electronics, Semiconductors suppliers \u2014 informing of disruption status and 3 suggested alternatives.",
+        "args": {
+          "recipient_group": "Electronics, Semiconductors suppliers",
+          "message": "Disruption advisory + route suggestions"
+        },
+        "result": {
+          "status": "dispatched",
+          "recipient_group": "Electronics, Semiconductors suppliers in Australia, Netherlands, Japan",
+          "message_preview": "Advisory: your shipments via Australia, Netherlands, Japan may be delayed due to"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 9,
+        "tool": "finalize_plan",
+        "thought": "Full analysis complete. Reroutes approved, suppliers flagged, recovery estimated. Committing plan.",
+        "args": {
+          "summary": "A high-severity event (US imposes emergency 200% tariff surcharge on all Chinese electronics imports) has disrupted 49 supply chain nodes across 31 countries, with Shanghai as the highest-risk chokepoint. The advisory agent identified 3 viable alternative route(s) and flagged 1 critical supplier(s) for immediate attention. Estimated recovery: 18 days. Suppliers have been notified with status updates and route options \u2014 final routing decisions remain with suppliers.",
+          "priority_actions": [
+            "ADVISORY: 3 alternative route(s) identified \u2014 share with your freight forwarder for evaluation",
+            "Notify production/procurement of expected 18-day recovery timeline",
+            "Review 1 flagged supplier(s) \u2014 assess backup sourcing options",
+            "Build 14-day buffer stock for Electronics, Semiconductors as precaution",
+            "Check insurance/force-majeure clauses for 500 at-risk shipments",
+            "Escalate to procurement leadership \u2014 49 cascade nodes indicate systemic corridor risk"
+          ],
+          "estimated_recovery_days": 18,
+          "risk_level": "High"
+        },
+        "result": {
+          "status": "advisory_plan_finalized"
+        },
+        "duration_ms": 0
+      }
+    ],
+    "suggested_alternatives": [
+      {
+        "source": "Dubai, UAE",
+        "destination": "Cape Town, South Africa",
+        "reason": "Alternative adds -74.1% distance ($+35,381 cost delta, -27.3d transit). Safety: clean. Recommended for supplier consideration.",
+        "suggested_at_step": 2
+      },
+      {
+        "source": "Rotterdam, Netherlands",
+        "destination": "London, UK",
+        "reason": "Alternative adds -97.1% distance ($+23,778 cost delta, -12.3d transit). Safety: hidden_dependency. Recommended for supplier consideration.",
+        "suggested_at_step": 3
+      },
+      {
+        "source": "Taipei, Taiwan",
+        "destination": "Busan, South Korea",
+        "reason": "Alternative adds -86.1% distance ($+30,232 cost delta, -22.1d transit). Safety: hidden_dependency. Recommended for supplier consideration.",
+        "suggested_at_step": 4
+      }
+    ],
+    "flagged_suppliers": [
+      {
+        "node": "SHA",
+        "city": "Shanghai, China",
+        "reason": "Highest-risk node (score 1.000, Tier 1) \u2014 emergency backup sourcing for Electronics required.",
+        "priority": "high"
+      }
+    ],
+    "final_summary": "A high-severity event (US imposes emergency 200% tariff surcharge on all Chinese electronics imports) has disrupted 49 supply chain nodes across 31 countries, with Shanghai as the highest-risk chokepoint. The advisory agent identified 3 viable alternative route(s) and flagged 1 critical supplier(s) for immediate attention. Estimated recovery: 18 days. Suppliers have been notified with status updates and route options \u2014 final routing decisions remain with suppliers.",
+    "priority_actions": [
+      "ADVISORY: 3 alternative route(s) identified \u2014 share with your freight forwarder for evaluation",
+      "Notify production/procurement of expected 18-day recovery timeline",
+      "Review 1 flagged supplier(s) \u2014 assess backup sourcing options",
+      "Build 14-day buffer stock for Electronics, Semiconductors as precaution",
+      "Check insurance/force-majeure clauses for 500 at-risk shipments",
+      "Escalate to procurement leadership \u2014 49 cascade nodes indicate systemic corridor risk"
+    ],
+    "risk_level": "High",
+    "estimated_recovery_days": 18,
+    "elapsed_seconds": 0.7,
+    "agent_source": "deterministic",
+    "timestamp": "2026-04-10T17:04:11.843911+00:00",
+    "notifications_sent": 0
+  },
+  {
+    "decision_id": "DEC-9D5896B3",
+    "event_id": "SIM-1775840227",
+    "event_text": "Iran and Isreal War affecting LPG supply in india",
+    "severity": "high",
+    "trigger_source": "simulation",
+    "steps": [
+      {
+        "step": 1,
+        "tool": "assess_disruptions",
+        "thought": "Calling assess_disruptions\u2026",
+        "args": {},
+        "result": {
+          "event": "Iran and Isreal War affecting LPG supply in india",
+          "severity": "high",
+          "seed_nodes": [
+            "MUM",
+            "CHE",
+            "COL",
+            "DEL"
+          ],
+          "total_cascade_nodes": 45,
+          "countries_affected": 28,
+          "shipments_at_risk": 480,
+          "estimated_cost_usd": 6200000.0,
+          "top_risk_nodes": [
+            {
+              "node": "SGP",
+              "city": "Singapore",
+              "country": "Singapore",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Semiconductors",
+              "tier": 1
+            },
+            {
+              "node": "MUM",
+              "city": "Mumbai",
+              "country": "India",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Pharmaceuticals",
+              "tier": 2
+            },
+            {
+              "node": "RTM",
+              "city": "Rotterdam",
+              "country": "Netherlands",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Chemicals",
+              "tier": 1
+            },
+            {
+              "node": "DXB",
+              "city": "Dubai",
+              "country": "UAE",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Transshipment",
+              "tier": 1
+            },
+            {
+              "node": "SHA",
+              "city": "Shanghai",
+              "country": "China",
+              "risk_score": 0.9765,
+              "risk_level": "Critical",
+              "product": "Electronics",
+              "tier": 1
+            }
+          ]
+        },
+        "duration_ms": 3550
+      },
+      {
+        "step": 2,
+        "tool": "score_route_alternatives",
+        "thought": "Calling score_route_alternatives\u2026",
+        "args": {},
+        "result": {
+          "total_alternatives_found": 8,
+          "total_analyzed": 8,
+          "best_routes": [
+            {
+              "source": "Hamburg, Germany",
+              "destination": "Rotterdam, Netherlands",
+              "detour_pct": -96.9,
+              "cost_delta_usd": 22371.47,
+              "delay_delta_days": -15.8,
+              "safety": "clean",
+              "path": "Hamburg, Germany \u2192 Rotterdam, Netherlands",
+              "score": -39.57
+            },
+            {
+              "source": "Rotterdam, Netherlands",
+              "destination": "Hamburg, Germany",
+              "detour_pct": -96.9,
+              "cost_delta_usd": 22371.47,
+              "delay_delta_days": -15.8,
+              "safety": "clean",
+              "path": "Rotterdam, Netherlands \u2192 Hamburg, Germany",
+              "score": -39.57
+            },
+            {
+              "source": "Djibouti, Djibouti",
+              "destination": "Dubai, UAE",
+              "detour_pct": -62.1,
+              "cost_delta_usd": 30438.83,
+              "delay_delta_days": -4.0,
+              "safety": "clean",
+              "path": "Djibouti, Djibouti \u2192 Dubai, UAE",
+              "score": -24.23
+            },
+            {
+              "source": "Dubai, UAE",
+              "destination": "Djibouti, Djibouti",
+              "detour_pct": -62.1,
+              "cost_delta_usd": 30438.83,
+              "delay_delta_days": -4.0,
+              "safety": "clean",
+              "path": "Dubai, UAE \u2192 Djibouti, Djibouti",
+              "score": -24.23
+            },
+            {
+              "source": "Dubai, UAE",
+              "destination": "Karachi, Pakistan",
+              "detour_pct": -58.0,
+              "cost_delta_usd": 29294.71,
+              "delay_delta_days": -2.0,
+              "safety": "clean",
+              "path": "Dubai, UAE \u2192 Karachi, Pakistan",
+              "score": -22.42
+            }
+          ]
+        },
+        "duration_ms": 2838
+      },
+      {
+        "step": 3,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "priority": "high",
+          "node_id": "MUM",
+          "reason": "Critical node in India affected by LPG supply disruption due to Iran-Israel war."
+        },
+        "result": {
+          "status": "flagged",
+          "node": "MUM",
+          "city": "Mumbai, India"
+        },
+        "duration_ms": 4992
+      },
+      {
+        "step": 4,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "node_id": "DXB",
+          "reason": "Critical transshipment hub in the region, highly exposed to the Iran-Israel conflict.",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "DXB",
+          "city": "Dubai, UAE"
+        },
+        "duration_ms": 4992
+      },
+      {
+        "step": 5,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "node_id": "RTM",
+          "reason": "Critical node for Chemicals, potentially impacting LPG-related supply chains.",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "RTM",
+          "city": "Rotterdam, Netherlands"
+        },
+        "duration_ms": 4992
+      },
+      {
+        "step": 6,
+        "tool": "estimate_recovery",
+        "thought": "Calling estimate_recovery\u2026",
+        "args": {
+          "risk_level": "High",
+          "n_nodes": 45
+        },
+        "result": {
+          "estimated_recovery_days": 18,
+          "risk_level": "High",
+          "n_nodes_affected": 45
+        },
+        "duration_ms": 2918
+      },
+      {
+        "step": 7,
+        "tool": "finalize_plan",
+        "thought": "Calling finalize_plan\u2026",
+        "args": {
+          "priority_actions": [
+            "Evaluate rerouting options: Consider Hamburg, Germany to Rotterdam, Netherlands (cost delta $22,371.47, -15.8 days delay) or Djibouti, Djibouti to Dubai, UAE (cost delta $30,438.83, -4 days delay) for critical shipments.",
+            "Prioritize monitoring and engagement with critical suppliers in Mumbai, India (MUM), Dubai, UAE (DXB), and Rotterdam, Netherlands (RTM).",
+            "Develop contingency plans for potential further disruptions in the affected regions, especially concerning transshipment hubs.",
+            "Communicate proactively with all affected stakeholders regarding potential delays and alternative arrangements."
+          ],
+          "summary": "A high-severity disruption due to the Iran and Israel War is significantly impacting LPG supply in India, affecting 28 countries and putting 480 shipments at risk, with an estimated cost of $6.2 million. Key affected cities and sectors include Mumbai (Pharmaceuticals), Dubai (Transshipment), and Rotterdam (Chemicals).",
+          "risk_level": "High",
+          "estimated_recovery_days": 18
+        },
+        "result": {
+          "status": "advisory_plan_finalized"
+        },
+        "duration_ms": 6131
+      }
+    ],
+    "suggested_alternatives": [],
+    "flagged_suppliers": [
+      {
+        "node": "MUM",
+        "city": "Mumbai, India",
+        "reason": "Critical node in India affected by LPG supply disruption due to Iran-Israel war.",
+        "priority": "high"
+      },
+      {
+        "node": "DXB",
+        "city": "Dubai, UAE",
+        "reason": "Critical transshipment hub in the region, highly exposed to the Iran-Israel conflict.",
+        "priority": "high"
+      },
+      {
+        "node": "RTM",
+        "city": "Rotterdam, Netherlands",
+        "reason": "Critical node for Chemicals, potentially impacting LPG-related supply chains.",
+        "priority": "high"
+      }
+    ],
+    "final_summary": "A high-severity disruption due to the Iran and Israel War is significantly impacting LPG supply in India, affecting 28 countries and putting 480 shipments at risk, with an estimated cost of $6.2 million. Key affected cities and sectors include Mumbai (Pharmaceuticals), Dubai (Transshipment), and Rotterdam (Chemicals).",
+    "priority_actions": [
+      "Evaluate rerouting options: Consider Hamburg, Germany to Rotterdam, Netherlands (cost delta $22,371.47, -15.8 days delay) or Djibouti, Djibouti to Dubai, UAE (cost delta $30,438.83, -4 days delay) for critical shipments.",
+      "Prioritize monitoring and engagement with critical suppliers in Mumbai, India (MUM), Dubai, UAE (DXB), and Rotterdam, Netherlands (RTM).",
+      "Develop contingency plans for potential further disruptions in the affected regions, especially concerning transshipment hubs.",
+      "Communicate proactively with all affected stakeholders regarding potential delays and alternative arrangements."
+    ],
+    "risk_level": "High",
+    "estimated_recovery_days": 18,
+    "elapsed_seconds": 20.5,
+    "agent_source": "gemini",
+    "timestamp": "2026-04-10T16:57:28.477752+00:00",
+    "notifications_sent": 0
+  },
+  {
+    "decision_id": "DEC-43E655F7",
+    "event_id": "SIM-1775839891",
+    "event_text": "Severe flooding in Rotterdam port area \u2014 60% of dock operations suspended",
+    "severity": "high",
+    "trigger_source": "simulation",
+    "steps": [
+      {
+        "step": 1,
+        "tool": "assess_disruptions",
+        "thought": "Disruption detected: 'Severe flooding in Rotterdam port area \u2014 60% of dock operations suspended'. Starting scope assessment \u2014 how many nodes, countries, and shipments are affected?",
+        "args": {},
+        "result": {
+          "event": "Severe flooding in Rotterdam port area \u2014 60% of dock operations suspended",
+          "severity": "high",
+          "seed_nodes": [
+            "RTM"
+          ],
+          "total_cascade_nodes": 45,
+          "countries_affected": 29,
+          "shipments_at_risk": 480,
+          "estimated_cost_usd": 6200000.0,
+          "top_risk_nodes": [
+            {
+              "node": "SHA",
+              "city": "Shanghai",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Electronics",
+              "tier": 1
+            },
+            {
+              "node": "SGP",
+              "city": "Singapore",
+              "country": "Singapore",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Semiconductors",
+              "tier": 1
+            },
+            {
+              "node": "MUM",
+              "city": "Mumbai",
+              "country": "India",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Pharmaceuticals",
+              "tier": 2
+            },
+            {
+              "node": "DXB",
+              "city": "Dubai",
+              "country": "UAE",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Transshipment",
+              "tier": 1
+            },
+            {
+              "node": "RTM",
+              "city": "Rotterdam",
+              "country": "Netherlands",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Chemicals",
+              "tier": 1
+            }
+          ]
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 2,
+        "tool": "score_route_alternatives",
+        "thought": "Scope: 45 nodes, 480 shipments at risk. Now ranking pre-computed rerouting alternatives.",
+        "args": {},
+        "result": {
+          "total_alternatives_found": 8,
+          "total_analyzed": 8,
+          "best_routes": [
+            {
+              "source": "Shanghai, China",
+              "destination": "Hong Kong, China",
+              "detour_pct": -93.3,
+              "cost_delta_usd": 22470.68,
+              "delay_delta_days": -21.4,
+              "safety": "clean",
+              "path": "Shanghai, China \u2192 Hong Kong, China",
+              "score": -38.69
+            },
+            {
+              "source": "Mumbai, India",
+              "destination": "Karachi, Pakistan",
+              "detour_pct": -93.1,
+              "cost_delta_usd": 23929.24,
+              "delay_delta_days": -15.0,
+              "safety": "clean",
+              "path": "Mumbai, India \u2192 Karachi, Pakistan",
+              "score": -37.92
+            },
+            {
+              "source": "Karachi, Pakistan",
+              "destination": "Dubai, UAE",
+              "detour_pct": -89.4,
+              "cost_delta_usd": 25536.77,
+              "delay_delta_days": -12.5,
+              "safety": "clean",
+              "path": "Karachi, Pakistan \u2192 Dubai, UAE",
+              "score": -36.14
+            },
+            {
+              "source": "Singapore, Singapore",
+              "destination": "Hong Kong, China",
+              "detour_pct": -87.0,
+              "cost_delta_usd": 25557.66,
+              "delay_delta_days": -21.7,
+              "safety": "clean",
+              "path": "Singapore, Singapore \u2192 Hong Kong, China",
+              "score": -36.1
+            },
+            {
+              "source": "Dubai, UAE",
+              "destination": "Cape Town, South Africa",
+              "detour_pct": -48.4,
+              "cost_delta_usd": 41974.86,
+              "delay_delta_days": -9.0,
+              "safety": "clean",
+              "path": "Dubai, UAE \u2192 Cape Town, South Africa",
+              "score": -18.9
+            }
+          ]
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 3,
+        "tool": "suggest_reroute",
+        "thought": "Route Shanghai, China\u2192Hong Kong, China: viable alternative (-93.3%, $+22,471). Adding to advisory.",
+        "args": {
+          "source": "Shanghai, China",
+          "destination": "Hong Kong, China",
+          "reason": "Alternative route Shanghai, China \u2192 Hong Kong, China added to advisory report for supplier review"
+        },
+        "result": {
+          "status": "suggestion_logged",
+          "message": "Alternative route Shanghai, China \u2192 Hong Kong, China added to advisory report for supplier review"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 4,
+        "tool": "suggest_reroute",
+        "thought": "Route Mumbai, India\u2192Karachi, Pakistan: viable alternative (-93.1%, $+23,929). Adding to advisory.",
+        "args": {
+          "source": "Mumbai, India",
+          "destination": "Karachi, Pakistan",
+          "reason": "Alternative route Mumbai, India \u2192 Karachi, Pakistan added to advisory report for supplier review"
+        },
+        "result": {
+          "status": "suggestion_logged",
+          "message": "Alternative route Mumbai, India \u2192 Karachi, Pakistan added to advisory report for supplier review"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 5,
+        "tool": "suggest_reroute",
+        "thought": "Route Karachi, Pakistan\u2192Dubai, UAE: viable alternative (-89.4%, $+25,537). Adding to advisory.",
+        "args": {
+          "source": "Karachi, Pakistan",
+          "destination": "Dubai, UAE",
+          "reason": "Alternative route Karachi, Pakistan \u2192 Dubai, UAE added to advisory report for supplier review"
+        },
+        "result": {
+          "status": "suggestion_logged",
+          "message": "Alternative route Karachi, Pakistan \u2192 Dubai, UAE added to advisory report for supplier review"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 6,
+        "tool": "flag_critical_supplier",
+        "thought": "Shanghai is the highest-risk chokepoint (risk 1.000). Flagging for immediate backup sourcing.",
+        "args": {
+          "node_id": "SHA",
+          "reason": "Shanghai, China",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "SHA",
+          "city": "Shanghai, China"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 7,
+        "tool": "estimate_recovery",
+        "thought": "Based on 45 cascade nodes and high severity, estimating recovery timeline.",
+        "args": {
+          "risk_level": "High",
+          "n_nodes": 45
+        },
+        "result": {
+          "estimated_recovery_days": 18,
+          "risk_level": "High",
+          "n_nodes_affected": 45
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 8,
+        "tool": "notify_suppliers",
+        "thought": "Dispatching advisory alerts to Chemicals, Consumer Goods suppliers \u2014 informing of disruption status and 3 suggested alternatives.",
+        "args": {
+          "recipient_group": "Chemicals, Consumer Goods suppliers",
+          "message": "Disruption advisory + route suggestions"
+        },
+        "result": {
+          "status": "dispatched",
+          "recipient_group": "Chemicals, Consumer Goods suppliers in Netherlands, Canada, Japan",
+          "message_preview": "Advisory: your shipments via Netherlands, Canada, Japan may be delayed due to: S"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 9,
+        "tool": "finalize_plan",
+        "thought": "Full analysis complete. Reroutes approved, suppliers flagged, recovery estimated. Committing plan.",
+        "args": {
+          "summary": "A high-severity event (Severe flooding in Rotterdam port area \u2014 60% of dock operations suspended) has disrupted 45 supply chain nodes across 29 countries, with Shanghai as the highest-risk chokepoint. The advisory agent identified 3 viable alternative route(s) and flagged 1 critical supplier(s) for immediate attention. Estimated recovery: 18 days. Suppliers have been notified with status updates and route options \u2014 final routing decisions remain with suppliers.",
+          "priority_actions": [
+            "ADVISORY: 3 alternative route(s) identified \u2014 share with your freight forwarder for evaluation",
+            "Notify production/procurement of expected 18-day recovery timeline",
+            "Review 1 flagged supplier(s) \u2014 assess backup sourcing options",
+            "Build 14-day buffer stock for Chemicals, Consumer Goods as precaution",
+            "Check insurance/force-majeure clauses for 480 at-risk shipments",
+            "Escalate to procurement leadership \u2014 45 cascade nodes indicate systemic corridor risk"
+          ],
+          "estimated_recovery_days": 18,
+          "risk_level": "High"
+        },
+        "result": {
+          "status": "advisory_plan_finalized"
+        },
+        "duration_ms": 0
+      }
+    ],
+    "suggested_alternatives": [
+      {
+        "source": "Shanghai, China",
+        "destination": "Hong Kong, China",
+        "reason": "Alternative adds -93.3% distance ($+22,471 cost delta, -21.4d transit). Safety: clean. Recommended for supplier consideration.",
+        "suggested_at_step": 2
+      },
+      {
+        "source": "Mumbai, India",
+        "destination": "Karachi, Pakistan",
+        "reason": "Alternative adds -93.1% distance ($+23,929 cost delta, -15.0d transit). Safety: clean. Recommended for supplier consideration.",
+        "suggested_at_step": 3
+      },
+      {
+        "source": "Karachi, Pakistan",
+        "destination": "Dubai, UAE",
+        "reason": "Alternative adds -89.4% distance ($+25,537 cost delta, -12.5d transit). Safety: clean. Recommended for supplier consideration.",
+        "suggested_at_step": 4
+      }
+    ],
+    "flagged_suppliers": [
+      {
+        "node": "SHA",
+        "city": "Shanghai, China",
+        "reason": "Highest-risk node (score 1.000, Tier 1) \u2014 emergency backup sourcing for Electronics required.",
+        "priority": "high"
+      }
+    ],
+    "final_summary": "A high-severity event (Severe flooding in Rotterdam port area \u2014 60% of dock operations suspended) has disrupted 45 supply chain nodes across 29 countries, with Shanghai as the highest-risk chokepoint. The advisory agent identified 3 viable alternative route(s) and flagged 1 critical supplier(s) for immediate attention. Estimated recovery: 18 days. Suppliers have been notified with status updates and route options \u2014 final routing decisions remain with suppliers.",
+    "priority_actions": [
+      "ADVISORY: 3 alternative route(s) identified \u2014 share with your freight forwarder for evaluation",
+      "Notify production/procurement of expected 18-day recovery timeline",
+      "Review 1 flagged supplier(s) \u2014 assess backup sourcing options",
+      "Build 14-day buffer stock for Chemicals, Consumer Goods as precaution",
+      "Check insurance/force-majeure clauses for 480 at-risk shipments",
+      "Escalate to procurement leadership \u2014 45 cascade nodes indicate systemic corridor risk"
+    ],
+    "risk_level": "High",
+    "estimated_recovery_days": 18,
+    "elapsed_seconds": 8.8,
+    "agent_source": "deterministic",
+    "timestamp": "2026-04-10T16:51:40.833556+00:00",
+    "notifications_sent": 0
+  },
+  {
+    "decision_id": "DEC-08D8620B",
+    "event_id": "SIM-1775839121",
+    "event_text": "Suez Canal blocked by grounded vessel \u2014 all trans-Suez shipping halted indefinitely",
+    "severity": "critical",
+    "trigger_source": "simulation",
+    "steps": [
+      {
+        "step": 1,
+        "tool": "assess_disruptions",
+        "thought": "Calling assess_disruptions\u2026",
+        "args": {},
+        "result": {
+          "event": "Suez Canal blocked by grounded vessel \u2014 all trans-Suez shipping halted indefinitely",
+          "severity": "critical",
+          "seed_nodes": [
+            "SUZ"
+          ],
+          "total_cascade_nodes": 42,
+          "countries_affected": 26,
+          "shipments_at_risk": 480,
+          "estimated_cost_usd": 21900000.0,
+          "top_risk_nodes": [
+            {
+              "node": "SHA",
+              "city": "Shanghai",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Electronics",
+              "tier": 1
+            },
+            {
+              "node": "SGP",
+              "city": "Singapore",
+              "country": "Singapore",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Semiconductors",
+              "tier": 1
+            },
+            {
+              "node": "DXB",
+              "city": "Dubai",
+              "country": "UAE",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Transshipment",
+              "tier": 1
+            },
+            {
+              "node": "SUZ",
+              "city": "Suez",
+              "country": "Egypt",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Transshipment",
+              "tier": 1
+            },
+            {
+              "node": "NYC",
+              "city": "New York",
+              "country": "USA",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Finance/Logistics",
+              "tier": 1
+            }
+          ]
+        },
+        "duration_ms": 2877
+      },
+      {
+        "step": 2,
+        "tool": "score_route_alternatives",
+        "thought": "Calling score_route_alternatives\u2026",
+        "args": {},
+        "result": {
+          "total_alternatives_found": 6,
+          "total_analyzed": 6,
+          "best_routes": [
+            {
+              "source": "Piraeus, Greece",
+              "destination": "Rotterdam, Netherlands",
+              "detour_pct": -20.7,
+              "cost_delta_usd": 38324.53,
+              "delay_delta_days": 0.9,
+              "safety": "hidden_dependency",
+              "path": "Piraeus, Greece \u2192 Barcelona, Spain \u2192 Milan, Italy \u2192 Paris, France \u2192 Antwerp, Belgium \u2192 Rotterdam, Netherlands",
+              "score": 43.06
+            },
+            {
+              "source": "Rotterdam, Netherlands",
+              "destination": "Piraeus, Greece",
+              "detour_pct": -20.7,
+              "cost_delta_usd": 38324.53,
+              "delay_delta_days": 0.9,
+              "safety": "hidden_dependency",
+              "path": "Rotterdam, Netherlands \u2192 Antwerp, Belgium \u2192 Paris, France \u2192 Milan, Italy \u2192 Barcelona, Spain \u2192 Piraeus, Greece",
+              "score": 43.06
+            },
+            {
+              "source": "Rotterdam, Netherlands",
+              "destination": "Djibouti, Djibouti",
+              "detour_pct": 26.1,
+              "cost_delta_usd": 45475.53,
+              "delay_delta_days": 1.9,
+              "safety": "hidden_dependency",
+              "path": "Rotterdam, Netherlands \u2192 Dubai, UAE \u2192 Djibouti, Djibouti",
+              "score": 62.09
+            },
+            {
+              "source": "Djibouti, Djibouti",
+              "destination": "Rotterdam, Netherlands",
+              "detour_pct": 26.1,
+              "cost_delta_usd": 45475.53,
+              "delay_delta_days": 1.9,
+              "safety": "hidden_dependency",
+              "path": "Djibouti, Djibouti \u2192 Dubai, UAE \u2192 Rotterdam, Netherlands",
+              "score": 62.09
+            },
+            {
+              "source": "Piraeus, Greece",
+              "destination": "Djibouti, Djibouti",
+              "detour_pct": 57.3,
+              "cost_delta_usd": 42687.1,
+              "delay_delta_days": 2.8,
+              "safety": "hidden_dependency",
+              "path": "Piraeus, Greece \u2192 Istanbul, Turkey \u2192 Dubai, UAE \u2192 Djibouti, Djibouti",
+              "score": 74.58
+            }
+          ]
+        },
+        "duration_ms": 1963
+      },
+      {
+        "step": 3,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "priority": "high",
+          "reason": "Suez Canal blockage causing critical risk to Shanghai (China) - Electronics supply.",
+          "node_id": "SHA"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "SHA",
+          "city": "Shanghai, China"
+        },
+        "duration_ms": 3354
+      },
+      {
+        "step": 4,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "node_id": "SGP",
+          "reason": "Suez Canal blockage causing critical risk to Singapore (Singapore) - Semiconductors supply.",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "SGP",
+          "city": "Singapore, Singapore"
+        },
+        "duration_ms": 3354
+      },
+      {
+        "step": 5,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "node_id": "DXB",
+          "reason": "Suez Canal blockage causing critical risk to Dubai (UAE) - Transshipment operations.",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "DXB",
+          "city": "Dubai, UAE"
+        },
+        "duration_ms": 3354
+      },
+      {
+        "step": 6,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "reason": "Suez Canal blockage causing critical risk to Suez (Egypt) - Transshipment operations.",
+          "node_id": "SUZ",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "SUZ",
+          "city": "Suez, Egypt"
+        },
+        "duration_ms": 3354
+      },
+      {
+        "step": 7,
+        "tool": "flag_critical_supplier",
+        "thought": "Calling flag_critical_supplier\u2026",
+        "args": {
+          "priority": "high",
+          "reason": "Suez Canal blockage causing critical risk to New York (USA) - Finance/Logistics.",
+          "node_id": "NYC"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "NYC",
+          "city": "New York, USA"
+        },
+        "duration_ms": 3354
+      },
+      {
+        "step": 8,
+        "tool": "estimate_recovery",
+        "thought": "Calling estimate_recovery\u2026",
+        "args": {
+          "risk_level": "Critical",
+          "n_nodes": 42
+        },
+        "result": {
+          "estimated_recovery_days": 25,
+          "risk_level": "Critical",
+          "n_nodes_affected": 42
+        },
+        "duration_ms": 1338
+      },
+      {
+        "step": 9,
+        "tool": "finalize_plan",
+        "thought": "Calling finalize_plan\u2026",
+        "args": {
+          "estimated_recovery_days": 25,
+          "risk_level": "Critical",
+          "summary": "A critical disruption at the Suez Canal has halted all trans-Suez shipping, impacting 26 countries, 480 shipments, and 42 cascade nodes with an estimated cost of $21.9 million. Key affected sectors include Electronics in Shanghai, Semiconductors in Singapore, and Transshipment operations in Dubai and Suez, alongside Finance/Logistics in New York. The estimated recovery timeline is 25 days.",
+          "priority_actions": [
+            "Evaluate and implement alternative shipping routes: Consider rerouting from Piraeus, Greece to Rotterdam, Netherlands via Barcelona, Milan, Paris, and Antwerp, which offers a 0.9-day delay and a cost delta of $38,324.53. Another option is from Rotterdam, Netherlands to Djibouti, Djibouti via Dubai, with a 1.9-day delay and a cost delta of $45,475.53.",
+            "Prioritize engagement with critical suppliers: Focus on nodes identified as critically impacted, including Shanghai (Electronics), Singapore (Semiconductors), Dubai (Transshipment), Suez (Transshipment), and New York (Finance/Logistics).",
+            "Adjust inventory and logistics plans: Prepare for an estimated 25-day recovery period by optimizing inventory levels and exploring alternative logistics solutions to mitigate delays.",
+            "Communicate proactively with stakeholders: Inform all affected partners and customers about potential delays and revised delivery schedules.",
+            "Monitor global supply chain for secondary impacts: Continuously assess the evolving situation for further cascade effects and emerging risks beyond the initial 42 affected nodes."
+          ]
+        },
+        "result": {
+          "status": "advisory_plan_finalized"
+        },
+        "duration_ms": 7585
+      }
+    ],
+    "suggested_alternatives": [],
+    "flagged_suppliers": [
+      {
+        "node": "SHA",
+        "city": "Shanghai, China",
+        "reason": "Suez Canal blockage causing critical risk to Shanghai (China) - Electronics supply.",
+        "priority": "high"
+      },
+      {
+        "node": "SGP",
+        "city": "Singapore, Singapore",
+        "reason": "Suez Canal blockage causing critical risk to Singapore (Singapore) - Semiconductors supply.",
+        "priority": "high"
+      },
+      {
+        "node": "DXB",
+        "city": "Dubai, UAE",
+        "reason": "Suez Canal blockage causing critical risk to Dubai (UAE) - Transshipment operations.",
+        "priority": "high"
+      },
+      {
+        "node": "SUZ",
+        "city": "Suez, Egypt",
+        "reason": "Suez Canal blockage causing critical risk to Suez (Egypt) - Transshipment operations.",
+        "priority": "high"
+      },
+      {
+        "node": "NYC",
+        "city": "New York, USA",
+        "reason": "Suez Canal blockage causing critical risk to New York (USA) - Finance/Logistics.",
+        "priority": "high"
+      }
+    ],
+    "final_summary": "A critical disruption at the Suez Canal has halted all trans-Suez shipping, impacting 26 countries, 480 shipments, and 42 cascade nodes with an estimated cost of $21.9 million. Key affected sectors include Electronics in Shanghai, Semiconductors in Singapore, and Transshipment operations in Dubai and Suez, alongside Finance/Logistics in New York. The estimated recovery timeline is 25 days.",
+    "priority_actions": [
+      "Evaluate and implement alternative shipping routes: Consider rerouting from Piraeus, Greece to Rotterdam, Netherlands via Barcelona, Milan, Paris, and Antwerp, which offers a 0.9-day delay and a cost delta of $38,324.53. Another option is from Rotterdam, Netherlands to Djibouti, Djibouti via Dubai, with a 1.9-day delay and a cost delta of $45,475.53.",
+      "Prioritize engagement with critical suppliers: Focus on nodes identified as critically impacted, including Shanghai (Electronics), Singapore (Semiconductors), Dubai (Transshipment), Suez (Transshipment), and New York (Finance/Logistics).",
+      "Adjust inventory and logistics plans: Prepare for an estimated 25-day recovery period by optimizing inventory levels and exploring alternative logistics solutions to mitigate delays.",
+      "Communicate proactively with stakeholders: Inform all affected partners and customers about potential delays and revised delivery schedules.",
+      "Monitor global supply chain for secondary impacts: Continuously assess the evolving situation for further cascade effects and emerging risks beyond the initial 42 affected nodes."
+    ],
+    "risk_level": "Critical",
+    "estimated_recovery_days": 25,
+    "elapsed_seconds": 18.2,
+    "agent_source": "gemini",
+    "timestamp": "2026-04-10T16:38:59.303685+00:00",
+    "notifications_sent": 0
+  },
+  {
+    "decision_id": "DEC-3C667CF2",
+    "event_id": "SIM-1775831581",
+    "event_text": "Port of Shanghai closed due to typhoon \u2014 all outbound container traffic suspended",
+    "severity": "critical",
+    "trigger_source": "simulation",
+    "steps": [
+      {
+        "step": 1,
+        "tool": "assess_disruptions",
+        "thought": "Disruption detected: 'Port of Shanghai closed due to typhoon \u2014 all outbound container traffic suspended'. Starting scope assessment \u2014 how many nodes, countries, and shipments are affected?",
+        "args": {},
+        "result": {
+          "event": "Port of Shanghai closed due to typhoon \u2014 all outbound container traffic suspended",
+          "severity": "critical",
+          "seed_nodes": [
+            "SHA",
+            "SZX",
+            "GZH"
+          ],
+          "total_cascade_nodes": 47,
+          "countries_affected": 29,
+          "shipments_at_risk": 500,
+          "estimated_cost_usd": 24150000.0,
+          "top_risk_nodes": [
+            {
+              "node": "SHA",
+              "city": "Shanghai",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Electronics",
+              "tier": 1
+            },
+            {
+              "node": "SZX",
+              "city": "Shenzhen",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Electronics",
+              "tier": 1
+            },
+            {
+              "node": "GZH",
+              "city": "Guangzhou",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Manufacturing",
+              "tier": 2
+            },
+            {
+              "node": "TJN",
+              "city": "Tianjin",
+              "country": "China",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Automotive",
+              "tier": 2
+            },
+            {
+              "node": "SGP",
+              "city": "Singapore",
+              "country": "Singapore",
+              "risk_score": 1.0,
+              "risk_level": "Critical",
+              "product": "Semiconductors",
+              "tier": 1
+            }
+          ]
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 2,
+        "tool": "score_route_alternatives",
+        "thought": "Scope: 47 nodes, 500 shipments at risk. Now ranking pre-computed rerouting alternatives.",
+        "args": {},
+        "result": {
+          "total_alternatives_found": 8,
+          "total_analyzed": 8,
+          "best_routes": [
+            {
+              "source": "Dubai, UAE",
+              "destination": "Almaty, Kazakhstan",
+              "detour_pct": -73.3,
+              "cost_delta_usd": 30381.34,
+              "delay_delta_days": -9.6,
+              "safety": "clean",
+              "path": "Dubai, UAE \u2192 Almaty, Kazakhstan",
+              "score": -29.27
+            },
+            {
+              "source": "Los Angeles, USA",
+              "destination": "Busan, South Korea",
+              "detour_pct": -14.7,
+              "cost_delta_usd": 43098.03,
+              "delay_delta_days": -2.0,
+              "safety": "clean",
+              "path": "Los Angeles, USA \u2192 Busan, South Korea",
+              "score": -4.69
+            },
+            {
+              "source": "Singapore, Singapore",
+              "destination": "Incheon, South Korea",
+              "detour_pct": 0.0,
+              "cost_delta_usd": 38142.02,
+              "delay_delta_days": -4.8,
+              "safety": "clean",
+              "path": "Singapore, Singapore \u2192 Incheon, South Korea",
+              "score": 0.76
+            },
+            {
+              "source": "Hamburg, Germany",
+              "destination": "Istanbul, Turkey",
+              "detour_pct": -75.3,
+              "cost_delta_usd": 34237.49,
+              "delay_delta_days": -14.2,
+              "safety": "hidden_dependency",
+              "path": "Hamburg, Germany \u2192 Frankfurt, Germany \u2192 Milan, Italy \u2192 Barcelona, Spain \u2192 Piraeus, Greece \u2192 Istanbul, Turkey",
+              "score": 19.59
+            },
+            {
+              "source": "Los Angeles, USA",
+              "destination": "Hamburg, Germany",
+              "detour_pct": -46.1,
+              "cost_delta_usd": 42842.03,
+              "delay_delta_days": -10.5,
+              "safety": "hidden_dependency",
+              "path": "Los Angeles, USA \u2192 New York, USA \u2192 Rotterdam, Netherlands \u2192 Hamburg, Germany",
+              "score": 31.9
+            }
+          ]
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 3,
+        "tool": "approve_reroute",
+        "thought": "Route Dubai, UAE \u2192 Almaty, Kazakhstan has a viable alternate (-73.3%, $+30,381). Approving.",
+        "args": {
+          "source": "Dubai, UAE",
+          "destination": "Almaty, Kazakhstan",
+          "reason": "Route Dubai, UAE \u2192 Almaty, Kazakhstan activated"
+        },
+        "result": {
+          "status": "approved",
+          "message": "Route Dubai, UAE \u2192 Almaty, Kazakhstan activated"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 4,
+        "tool": "approve_reroute",
+        "thought": "Route Los Angeles, USA \u2192 Busan, South Korea has a viable alternate (-14.7%, $+43,098). Approving.",
+        "args": {
+          "source": "Los Angeles, USA",
+          "destination": "Busan, South Korea",
+          "reason": "Route Los Angeles, USA \u2192 Busan, South Korea activated"
+        },
+        "result": {
+          "status": "approved",
+          "message": "Route Los Angeles, USA \u2192 Busan, South Korea activated"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 5,
+        "tool": "approve_reroute",
+        "thought": "Route Singapore, Singapore \u2192 Incheon, South Korea has a viable alternate (+0.0%, $+38,142). Approving.",
+        "args": {
+          "source": "Singapore, Singapore",
+          "destination": "Incheon, South Korea",
+          "reason": "Route Singapore, Singapore \u2192 Incheon, South Korea activated"
+        },
+        "result": {
+          "status": "approved",
+          "message": "Route Singapore, Singapore \u2192 Incheon, South Korea activated"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 6,
+        "tool": "flag_critical_supplier",
+        "thought": "Shanghai is the highest-risk chokepoint (risk 1.000). Flagging for immediate backup sourcing.",
+        "args": {
+          "node_id": "SHA",
+          "reason": "Shanghai, China",
+          "priority": "high"
+        },
+        "result": {
+          "status": "flagged",
+          "node": "SHA",
+          "city": "Shanghai, China"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 7,
+        "tool": "estimate_recovery",
+        "thought": "Based on 47 cascade nodes and critical severity, estimating recovery timeline.",
+        "args": {
+          "risk_level": "Critical",
+          "n_nodes": 47
+        },
+        "result": {
+          "estimated_recovery_days": 26,
+          "risk_level": "Critical",
+          "n_nodes_affected": 47
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 8,
+        "tool": "notify_suppliers",
+        "thought": "Dispatching alerts to Electronics, Manufacturing, Consumer Goods suppliers in affected regions.",
+        "args": {
+          "recipient_group": "Electronics, Manufacturing, Consumer Goods suppliers",
+          "message": "Route update"
+        },
+        "result": {
+          "status": "dispatched",
+          "recipient_group": "Electronics, Manufacturing, Consumer Goods suppliers in Canada, Djibouti, Germany",
+          "message_preview": "Route update required due to: Port of Shanghai closed due to typhoon \u2014 all outbo"
+        },
+        "duration_ms": 0
+      },
+      {
+        "step": 9,
+        "tool": "finalize_plan",
+        "thought": "Full analysis complete. Reroutes approved, suppliers flagged, recovery estimated. Committing plan.",
+        "args": {
+          "summary": "A critical-severity event (Port of Shanghai closed due to typhoon \u2014 all outbound container traffic suspended) has disrupted 47 supply chain nodes across 29 countries, with Shanghai as the highest-risk chokepoint. The agent approved 3 alternate route(s), flagged 1 critical supplier(s), and estimated 26-day recovery.",
+          "priority_actions": [
+            "Activate 3 approved alternate route(s) immediately",
+            "Emergency procurement for Electronics, Manufacturing \u2014 500 shipments at risk",
+            "Flag 1 critical supplier(s) for backup sourcing within 24h",
+            "Issue risk advisory to procurement teams in 29 affected countries",
+            "Escalate to Tier-1 suppliers in unaffected regions to increase buffer stock",
+            "Initiate war room protocol \u2014 47 cascade nodes require continuous monitoring"
+          ],
+          "estimated_recovery_days": 26,
+          "risk_level": "Critical"
+        },
+        "result": {
+          "status": "plan_finalized"
+        },
+        "duration_ms": 0
+      }
+    ],
+    "approved_reroutes": [
+      {
+        "source": "Dubai, UAE",
+        "destination": "Almaty, Kazakhstan",
+        "reason": "Alternate adds +-73.3% distance ($+30,381 cost). Safety: clean. Best available path.",
+        "approved_at_step": 2
+      },
+      {
+        "source": "Los Angeles, USA",
+        "destination": "Busan, South Korea",
+        "reason": "Alternate adds +-14.7% distance ($+43,098 cost). Safety: clean. Best available path.",
+        "approved_at_step": 3
+      },
+      {
+        "source": "Singapore, Singapore",
+        "destination": "Incheon, South Korea",
+        "reason": "Alternate adds +0.0% distance ($+38,142 cost). Safety: clean. Best available path.",
+        "approved_at_step": 4
+      }
+    ],
+    "flagged_suppliers": [
+      {
+        "node": "SHA",
+        "city": "Shanghai, China",
+        "reason": "Highest-risk node (score 1.000, Tier 1) \u2014 emergency backup sourcing for Electronics required.",
+        "priority": "high"
+      }
+    ],
+    "final_summary": "A critical-severity event (Port of Shanghai closed due to typhoon \u2014 all outbound container traffic suspended) has disrupted 47 supply chain nodes across 29 countries, with Shanghai as the highest-risk chokepoint. The agent approved 3 alternate route(s), flagged 1 critical supplier(s), and estimated 26-day recovery.",
+    "priority_actions": [
+      "Activate 3 approved alternate route(s) immediately",
+      "Emergency procurement for Electronics, Manufacturing \u2014 500 shipments at risk",
+      "Flag 1 critical supplier(s) for backup sourcing within 24h",
+      "Issue risk advisory to procurement teams in 29 affected countries",
+      "Escalate to Tier-1 suppliers in unaffected regions to increase buffer stock",
+      "Initiate war room protocol \u2014 47 cascade nodes require continuous monitoring"
+    ],
+    "risk_level": "Critical",
+    "estimated_recovery_days": 26,
+    "elapsed_seconds": 17.1,
+    "agent_source": "deterministic",
+    "timestamp": "2026-04-10T14:33:18.097242+00:00",
+    "notifications_sent": 0
+  }
+]
